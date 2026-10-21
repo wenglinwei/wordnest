@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#18202a"/>
+  <path d="M256 400c0-70 8-128 34-180" fill="none" stroke="#22c55e" stroke-width="22" stroke-linecap="round"/>
+  <path d="M262 238c-58 6-104-18-122-70 58-6 104 18 122 70z" fill="#22c55e"/>
+  <path d="M282 202c22-50 70-76 124-72-4 56-38 96-92 106-14-8-25-19-32-34z" fill="#4ade80"/>
+  <text x="256" y="452" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="700" fill="#ffffff" text-anchor="middle">WordNest</text>
+</svg>
