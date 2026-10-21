@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>WordNest — English Learning</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f6f7fb;color:#18202a;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",Arial,sans-serif}
+.app{max-width:720px;margin:auto;min-height:100vh;padding:18px 16px 40px}
+header{padding:8px 2px 14px}
+h1{font-size:30px;margin:0 0 4px}
+.sub{color:#6b7280;font-size:14px}
+.search{display:flex;gap:8px;background:white;padding:10px;border-radius:18px;box-shadow:0 5px 20px #0000000b}
+input{flex:1;border:0;outline:0;font-size:18px;min-width:0;padding:8px 10px;background:transparent}
+button{border:0;border-radius:13px;padding:10px 14px;font-weight:700;font-size:15px;background:#18202a;color:white}
+button.secondary{background:#eef1f5;color:#18202a}
+nav{display:flex;gap:8px;margin:14px 0;overflow:auto}
+nav button{white-space:nowrap;background:#fff;color:#4b5563}
+nav button.active{background:#18202a;color:white}
+.card{background:white;border-radius:20px;padding:18px;margin:12px 0;box-shadow:0 5px 20px #00000008}
+.word{font-size:32px;font-weight:800;margin:0 0 5px;word-break:break-word}
+.pos{color:#7c3aed;font-weight:700}
+.zh{font-size:22px;font-weight:700;margin:12px 0}
+.meaning{line-height:1.6;color:#374151}
+.example{background:#f6f7fb;padding:13px;border-radius:14px;margin-top:12px;line-height:1.5}
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.tag{background:#eef1f5;border-radius:999px;padding:7px 10px;font-size:14px}
+.actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.actions button{flex:1;min-width:120px}
+.empty{text-align:center;color:#6b7280;padding:45px 15px}
+.hidden{display:none!important}
+.item{padding:13px 0;border-bottom:1px solid #edf0f3;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.item:last-child{border-bottom:0}
+.item b{font-size:18px}
+.small{font-size:13px;color:#6b7280}
+.graph{height:300px;background:#f7f8fb;border-radius:16px;position:relative;overflow:hidden;margin-top:14px}
+.node{position:absolute;padding:9px 12px;border-radius:999px;background:white;box-shadow:0 3px 12px #0002;font-weight:700;font-size:14px;cursor:pointer}
+.line{position:absolute;height:2px;background:#cfd5dc;transform-origin:0 50%}
+.toast{position:fixed;left:50%;bottom:25px;transform:translateX(-50%);background:#18202a;color:#fff;padding:11px 15px;border-radius:12px;display:none;z-index:10;max-width:90%;text-align:center}
+footer{text-align:center;color:#9ca3af;font-size:12px;margin-top:25px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+<h1>🌱 WordNest</h1>
+<div class="sub">查单词 → 理解 → 建立词汇关系 → 自动复习</div>
+</header>
+
+<div class="search">
+<input id="q" autocomplete="off" autocapitalize="none" placeholder="输入英文单词或短语，例如 hello">
+<button id="searchBtn">查询</button>
+</div>
+
+<nav>
+<button class="active" data-tab="search">查询</button>
+<button data-tab="review">今日复习</button>
+<button data-tab="library">我的词库</button>
+</nav>
+
+<section id="searchTab">
+<div id="result" class="empty">先输入一个英文单词或短语，再点「查询」。<br><br>试试 <b>hello</b>、<b>improve</b>、<b>figure out</b></div>
+</section>
+
+<section id="reviewTab" class="hidden">
+<div class="card">
+<h2>今日复习</h2>
+<div id="reviewList"></div>
+</div>
+</section>
+
+<section id="libraryTab" class="hidden">
+<div class="card">
+<h2>我的词库</h2>
+<div id="libraryList"></div>
+</div>
+</section>
+
+<footer>
+这是一个真正可以在浏览器里运行的单文件版本。<br>
+不需要 API Key；内置词典数据完全离线可用。
+</footer>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const DICT = {
+"hello":{"pos":"interjection / noun","zh":"你好；用于打招呼，也可以表示问候。","meaning":"A friendly word used when you meet or greet someone.","example":"Hello! Nice to meet you.","family":["hello","hello there"],"root":"常用问候语；不是按拉丁词根拆分的词。"},
+"improve":{"pos":"verb","zh":"改善；提高；变得更好。","meaning":"To make something better, or to become better.","example":"I want to improve my English.","family":["improvement","improved","improving"],"root":"improve → improvement（改善、提高）"},
+"important":{"pos":"adjective","zh":"重要的；值得重视的。","meaning":"Having a lot of value, meaning, or importance.","example":"This is an important lesson.","family":["importance","importantly"],"root":"important → importance"},
+"achieve":{"pos":"verb","zh":"实现；达到（目标）。","meaning":"To successfully reach a goal after working toward it.","example":"She worked hard to achieve her goal.","family":["achievement","achievable","achieved"],"root":"achieve → achievement（成就）"},
+"resilient":{"pos":"adjective","zh":"有韧性的；能从困难中恢复的。","meaning":"Able to recover and keep going after difficulty.","example":"Children can be surprisingly resilient.","family":["resilience","resiliently"],"root":"resilient → resilience"},
+"contribute":{"pos":"verb","zh":"贡献；促成；投稿。","meaning":"To give something that helps a person, group, or result.","example":"Everyone can contribute an idea.","family":["contribution","contributor"],"root":"contribute → contribution → contributor"},
+"sustainable":{"pos":"adjective","zh":"可持续的；能够长期维持的。","meaning":"Able to continue for a long time without causing serious harm or using up resources.","example":"We need more sustainable ways to travel.","family":["sustain","sustainability","sustainably"],"root":"sustain → sustainable → sustainability"},
+"abandon":{"pos":"verb","zh":"放弃；抛弃；离开。","meaning":"To leave something or stop doing something completely.","example":"They decided not to abandon the plan.","family":["abandoned","abandonment"],"root":"abandon → abandonment"},
+"figure out":{"pos":"phrasal verb","zh":"弄明白；想出办法。","meaning":"To understand something or find a way to solve it.","example":"I finally figured out the answer.","family":["figure","figure it out"],"root":"固定短语：figure + out"},
+"look forward to":{"pos":"expression","zh":"期待；盼望。","meaning":"To feel happy and excited about something that will happen.","example":"I look forward to seeing you.","family":["look forward","looking forward to"],"root":"固定表达，不按单个词直译。"},
+"curious":{"pos":"adjective","zh":"好奇的；想了解的。","meaning":"Wanting to know or learn more about something.","example":"I'm curious about how it works.","family":["curiosity","curiously"],"root":"curious → curiosity"},
+"confident":{"pos":"adjective","zh":"自信的；有把握的。","meaning":"Feeling sure about your ability or about something being true.","example":"She feels confident about the test.","family":["confidence","confidently"],"root":"confident → confidence"},
+"challenge":{"pos":"noun / verb","zh":"挑战；对……提出挑战。","meaning":"Something difficult that tests your ability, or to test someone or something.","example":"Learning a new language is a challenge.","family":["challenging","challenger"],"root":"challenge → challenging"},
+"discover":{"pos":"verb","zh":"发现；找到以前不知道的东西。","meaning":"To find or learn something for the first time.","example":"I discovered a useful new word.","family":["discovery","discoverable"],"root":"discover → discovery"},
+"understand":{"pos":"verb","zh":"理解；明白。","meaning":"To know what something means or how it works.","example":"Do you understand the question?","family":["understanding","understood"],"root":"understand → understanding"},
+"practice":{"pos":"noun / verb","zh":"练习；实践。","meaning":"Repeated activity done to improve a skill.","example":"Practice makes your English stronger.","family":["practise","practiced","practicing"],"root":"practice → practical（相关词）"},
+"remember":{"pos":"verb","zh":"记得；记住。","meaning":"To keep something in your memory or bring it back to mind.","example":"I can't remember his name.","family":["remembered","remembering","reminder"],"root":"remember → reminder"},
+"learn":{"pos":"verb","zh":"学习；学会。","meaning":"To gain knowledge or a skill through study or experience.","example":"I learn new words every day.","family":["learner","learning","learned"],"root":"learn → learner → learning"},
+"example":{"pos":"noun","zh":"例子；示例。","meaning":"Something that shows what another thing is like or how it works.","example":"Can you give me an example?","family":["for example","example-based"],"root":"example → for example"},
+"because":{"pos":"conjunction","zh":"因为；由于。","meaning":"For the reason that something happened or is true.","example":"I stayed home because it was raining.","family":["because of"],"root":"because → because of"},
+"although":{"pos":"conjunction","zh":"虽然；尽管。","meaning":"Used to introduce a contrast.","example":"Although it was late, I kept studying.","family":["even though","though"],"root":"相关表达：though / even though"},
+"actually":{"pos":"adverb","zh":"实际上；其实。","meaning":"Used to say what is really true, especially when it is different from what was expected.","example":"Actually, I don't agree.","family":["actual","actuality"],"root":"actual → actually"}
+};
+
+const KEY="wordnest_library_v2";
+
+function loadLib(){
+try{return JSON.parse(localStorage.getItem(KEY)||"{}");}
+catch(e){return {};}
+}
+
+function saveLib(x){
+localStorage.setItem(KEY,JSON.stringify(x));
+}
+
+function norm(s){
+return s.trim().toLowerCase().replace(/\s+/g," ");
+}
+
+function toast(msg){
+const t=document.getElementById("toast");
+t.textContent=msg;
+t.style.display="block";
+clearTimeout(window.__toast);
+window.__toast=setTimeout(()=>t.style.display="none",2200);
+}
+
+function findLocal(term){
+if(DICT[term])return DICT[term];
+const noSpace=term.replace(/\s+/g,"");
+for(const k of Object.keys(DICT)){
+if(k.replace(/\s+/g,"")===noSpace)return DICT[k];
+}
+return null;
+}
+
+function search(){
+const raw=document.getElementById("q").value;
+const term=norm(raw);
+
+if(!term){
+toast("先输入一个英文单词或短语");
+return;
+}
+
+const result=document.getElementById("result");
+const d=findLocal(term);
+
+if(!d){
+result.innerHTML=`
+<div class="card">
+<div class="word">${escapeHtml(raw)}</div>
+<div class="zh">暂时没有这个词的内置资料</div>
+<div class="meaning">这个版本是完全免 API、免注册的本地版，所以未知词不会编造解释。你可以先把它加入词库，之后继续学习。</div>
+<div class="actions">
+<button onclick="addUnknown('${jsQuote(term)}')">加入词库</button>
+</div>
+</div>`;
+return;
+}
+
+const lib=loadLib();
+lib[term]=lib[term]||{level:0,last:Date.now(),correct:0,wrong:0};
+lib[term].lookups=(lib[term].lookups||0)+1;
+saveLib(lib);
+
+renderResult(term,d);
+renderLibrary();
+renderReview();
+}
+
+function renderResult(term,d){
+const fam=(d.family||[]).map(x=>`<span class="tag">${escapeHtml(x)}</span>`).join("");
+const result=document.getElementById("result");
+
+result.innerHTML=`
+<div class="card">
+<div class="word">${escapeHtml(term)}</div>
+<div class="pos">${escapeHtml(d.pos||"")}</div>
+<div class="zh">${escapeHtml(d.zh||"")}</div>
+<div class="meaning">${escapeHtml(d.meaning||"")}</div>
+<div class="example">💬 ${escapeHtml(d.example||"")}</div>
+
+<h3>🌱 词根 / 构词</h3>
+<div class="meaning">${escapeHtml(d.root||"")}</div>
+
+<h3>🔗 相关词</h3>
+<div class="tags">${fam||"<span class='small'>暂无</span>"}</div>
+
+<h3>🕸️ 词汇关系</h3>
+<div id="graph" class="graph"></div>
+
+<div class="actions">
+<button onclick="mark(termSafe('${jsQuote(term)}'),true)">记住了 ✓</button>
+<button class="secondary" onclick="mark(termSafe('${jsQuote(term)}'),false)">还没记住</button>
+</div>
+</div>`;
+
+drawGraph(term,d.family||[]);
+}
+
+function drawGraph(term,family){
+const g=document.getElementById("graph");
+if(!g)return;
+
+g.innerHTML="";
+const cx=50,cy=50;
+
+family.slice(0,6).forEach((w,i)=>{
+const a=(Math.PI*2*i/Math.max(1,Math.min(6,family.length)))-Math.PI/2;
+const x=50+35*Math.cos(a);
+const y=50+35*Math.sin(a);
+
+const line=document.createElement("div");
+line.className="line";
+
+const dx=x-cx,dy=y-cy,len=Math.sqrt(dx*dx+dy*dy);
+
+line.style.left=cx+"%";
+line.style.top=cy+"%";
+line.style.width=len+"%";
+line.style.transform=`rotate(${Math.atan2(dy,dx)*180/Math.PI}deg)`;
+g.appendChild(line);
+
+const n=document.createElement("div");
+n.className="node";
+n.textContent=w;
+n.style.left=`calc(${x}% - 30px)`;
+n.style.top=`calc(${y}% - 18px)`;
+n.onclick=()=>{
+document.getElementById("q").value=w;
+search();
+};
+g.appendChild(n);
+});
+
+const c=document.createElement("div");
+c.className="node";
+c.textContent=term;
+c.style.left="calc(50% - 35px)";
+c.style.top="calc(50% - 18px)";
+c.style.background="#18202a";
+c.style.color="white";
+g.appendChild(c);
+}
+
+function mark(term,good){
+const lib=loadLib();
+
+if(!lib[term])lib[term]={level:0};
+
+if(good)
+lib[term].correct=(lib[term].correct||0)+1;
+else
+lib[term].wrong=(lib[term].wrong||0)+1;
+
+lib[term].level=Math.max(0,(lib[term].level||0)+(good?1:-1));
+
+const days=[0,1,3,7,14,30];
+const d=days[Math.min(lib[term].level,5)];
+
+lib[term].next=Date.now()+d*86400000;
+
+saveLib(lib);
+renderReview();
+renderLibrary();
+
+toast(good?"记忆等级提高了 🌱":"没关系，稍后再复习一次");
+}
+
+function addUnknown(term){
+const lib=loadLib();
+
+lib[term]=lib[term]||{
+level:0,
+last:Date.now(),
+unknown:true
+};
+
+saveLib(lib);
+renderReview();
+renderLibrary();
+toast("已加入词库");
+}
+
+function renderLibrary(){
+const el=document.getElementById("libraryList");
+const lib=loadLib();
+const keys=Object.keys(lib);
+
+if(!keys.length){
+el.innerHTML='<div class="empty">还没有词。查询一个词就会自动加入。</div>';
+return;
+}
+
+el.innerHTML=keys.map(k=>`
+<div class="item">
+<div>
+<b>${escapeHtml(k)}</b>
+<div class="small">复习等级 ${lib[k].level||0} · 查询 ${lib[k].lookups||1} 次</div>
+</div>
+<button class="secondary" onclick="removeWord('${jsQuote(k)}')">删除</button>
+</div>`).join("");
+}
+
+function removeWord(term){
+const lib=loadLib();
+delete lib[term];
+saveLib(lib);
+renderLibrary();
+renderReview();
+toast("已删除");
+}
+
+function renderReview(){
+const el=document.getElementById("reviewList");
+const lib=loadLib();
+const now=Date.now();
+
+const due=Object.keys(lib).filter(k=>!lib[k].next||lib[k].next<=now);
+
+if(!due.length){
+el.innerHTML='<div class="empty">今天暂时没有到期卡片 🎉</div>';
+return;
+}
+
+el.innerHTML=due.map(k=>`
+<div class="item">
+<div>
+<b>${escapeHtml(k)}</b>
+<div class="small">等级 ${lib[k].level||0}</div>
+</div>
+<button onclick="document.getElementById('q').value='${jsQuote(k)}';document.querySelector('[data-tab=search]').click();search()">复习</button>
+</div>`).join("");
+}
+
+function escapeHtml(s){
+return String(s).replace(/[&<>"']/g,c=>({
+"&":"&amp;",
+"<":"&lt;",
+">":"&gt;",
+"\"":"&quot;",
+"'":"&#39;"
+}[c]));
+}
+
+function jsQuote(s){
+return String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/\n/g,"\\n");
+}
+
+function termSafe(s){
+return s;
+}
+
+document.getElementById("searchBtn").addEventListener("click",search);
+
+document.getElementById("q").addEventListener("keydown",e=>{
+if(e.key==="Enter")search();
+});
+
+document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()=>{
+document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));
+b.classList.add("active");
+
+["search","review","library"].forEach(id=>
+document.getElementById(id+"Tab").classList.toggle("hidden",id!==b.dataset.tab)
+);
+
+if(b.dataset.tab==="review")renderReview();
+if(b.dataset.tab==="library")renderLibrary();
+}));
+
+renderLibrary();
+renderReview();
+</script>
+</body>
+</html>
