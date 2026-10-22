@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#18202a">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.webmanifest">
-<title>WordNest V2.8 — English Learning</title>
+<title>WordNest V2.9 — English Learning</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#f6f7fb;color:#18202a;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",Arial,sans-serif}
@@ -92,7 +92,7 @@ textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 1
 <body>
 <div class="app">
 <header>
-<h1>🌱 WordNest <span style="font-size:15px;color:#7c3aed">V2.8</span></h1>
+<h1>🌱 WordNest <span style="font-size:15px;color:#7c3aed">V2.9</span></h1>
 <div class="sub">查单词 → 理解 → 建立词汇关系 → 间隔复习</div>
 </header>
 
@@ -172,6 +172,10 @@ textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 1
 <div class="field"><label>模型</label><input id="aiModel" placeholder="gpt-4o-mini"></div>
 <div class="field"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="aiAuto" style="flex:0 0 auto;width:20px;height:20px" checked> 查词不完整时自动 AI 补全</label></div>
 <div class="actions"><button id="aiSaveBtn">保存</button></div>
+</div>
+<div class="card">
+<h2>🔊 复习</h2>
+<label style="display:flex;gap:8px;align-items:center;font-size:15px;color:#374151"><input type="checkbox" id="autoSpeak" checked> 闪卡出现时自动朗读单词</label>
 </div>
 <div class="card">
 <h2>数据</h2>
@@ -330,6 +334,7 @@ function speak(text, audioUrl){
   }
   speakTTS(text);
 }
+function autoSpeakOn(){ try{ return localStorage.getItem("wordnest_autospeak") !== "0"; }catch(e){ return true; } }
 function speakTTS(text){
   if(!("speechSynthesis" in window)){ toast("这个浏览器不支持语音朗读"); return; }
   speechSynthesis.cancel();
@@ -524,7 +529,7 @@ function detailHtml(term, d, gid){
     (d.zh ? '<div class="zh">' + escapeHtml(d.zh) + '</div>' : '') +
     (d.meaning ? '<div class="meaning">' + escapeHtml(d.meaning) + '</div>' : '') +
     ((d.contextWords && d.contextWords.length) ? '<div class="example" style="background:#fffbeb">📍 同批选词：' +
-      d.contextWords.map(escapeHtml).join(' · ') +
+      d.contextWords.map(w => '<span class="tag" data-action="lookup-term" data-term="' + escapeHtml(w) + '">' + escapeHtml(w) + '</span>').join(' ') +
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>'
     : (d.contextSentence ? '<div class="example" style="background:#fffbeb">📖 出处原句：' + escapeHtml(d.contextSentence) +
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>' : '')) +
@@ -678,11 +683,12 @@ function renderCardFront(){
   document.getElementById("session").innerHTML =
     '<div class="card">' + progressHtml() +
     '<div class="fc"><div class="small">先想一想：它是什么意思？</div>' +
-    '<div class="fcword">' + escapeHtml(term) + '</div>' +
+    '<div class="fcword" data-action="lookup-term" data-term="' + escapeHtml(term) + '" style="cursor:pointer">' + escapeHtml(term) + '</div>' +
     (d.phonetic ? '<div class="phonetic">' + escapeHtml(d.phonetic) + '</div>' : '') +
     '<div style="margin-top:12px">' + speakBtn(term, d.audio) + '</div>' +
     '<div class="hint">点发音听一听，想好后点「显示答案」</div></div>' +
     '<div class="actions"><button data-action="show-answer">显示答案</button></div></div>';
+  if(autoSpeakOn()){ try{ speak(term, d.audio); }catch(e){} }
 }
 function renderCardBack(){
   const term = session.current;
@@ -696,7 +702,7 @@ function renderCardBack(){
   };
   document.getElementById("session").innerHTML =
     '<div class="card">' + progressHtml() +
-    '<div><span class="word" style="font-size:26px">' + escapeHtml(term) + '</span>' + speakBtn(term, d.audio) +
+    '<div><span class="word" data-action="lookup-term" data-term="' + escapeHtml(term) + '" style="font-size:26px;cursor:pointer">' + escapeHtml(term) + '</span>' + speakBtn(term, d.audio) +
     (d.phonetic ? '<span class="phonetic">' + escapeHtml(d.phonetic) + '</span>' : '') + '</div>' +
     '<div class="pos">' + escapeHtml(d.pos||"") + '</div>' +
     (d.zh ? '<div class="zh">' + escapeHtml(d.zh) + '</div>' : '') +
@@ -704,7 +710,7 @@ function renderCardBack(){
     (d.example ? '<div class="example">💬 ' + escapeHtml(d.example) +
       ' <button class="speakbtn" data-action="speak" data-text="' + escapeHtml(d.example) + '">🔊</button></div>' : '') +
     ((d.contextWords && d.contextWords.length) ? '<div class="example" style="background:#fffbeb">📍 同批选词：' +
-      d.contextWords.map(escapeHtml).join(' · ') +
+      d.contextWords.map(w => '<span class="tag" data-action="lookup-term" data-term="' + escapeHtml(w) + '">' + escapeHtml(w) + '</span>').join(' ') +
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>'
     : (d.contextSentence ? '<div class="example" style="background:#fffbeb">📖 出处原句：' + escapeHtml(d.contextSentence) +
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>' : '')) +
@@ -981,6 +987,16 @@ function analyzeMarks(canvas, tokens){
 
 /* ================= Capture confirm UI ================= */
 let captureState = null;
+function closeCaptureTask(){
+  captureState = null;
+  const or = document.getElementById("ocrResult"); if(or) or.innerHTML = "";
+  const os = document.getElementById("ocrStatus"); if(os) os.textContent = "";
+  const op = document.getElementById("ocrPanel"); if(op) op.classList.add("hidden");
+  const ca = document.getElementById("captureArea"); if(ca) ca.innerHTML = "";
+  const pp = document.getElementById("pastePanel"); if(pp) pp.classList.add("hidden");
+  const pt = document.getElementById("pasteText"); if(pt) pt.value = "";
+  const fi = document.getElementById("photoInput"); if(fi) fi.value = "";
+}
 function setupCapture(container, tokens, kind){
   captureState = {container: container, tokens: tokens, splitSet: new Set(), kind: kind};
   renderCapture();
@@ -1059,6 +1075,10 @@ document.addEventListener("click", e => {
   else if(a === "show-answer"){ if(session){ session.showing = true; renderCardBack(); } }
   else if(a === "grade") gradeCurrent(el.dataset.grade);
   else if(a === "goto-search") switchTab("search");
+  else if(a === "lookup-term"){
+    const t = el.dataset.term;
+    if(t){ document.getElementById("q").value = t; switchTab("search"); search(t); }
+  }
   else if(a === "remove"){
     const lib = loadLib(); delete lib[term]; saveLib(lib); refreshAll(); toast("已删除");
   }
@@ -1088,7 +1108,6 @@ document.addEventListener("click", e => {
       const srcEl = document.getElementById("capSource");
       const src = srcEl ? srcEl.value.trim() : "";
       const groups = computeGroups(captureState.tokens, captureState.splitSet);
-      const container = captureState.container;
       const batchId = Date.now();
       const lib = loadLib(); const terms = groups.map(g => g.text);
       groups.forEach(g => {
@@ -1100,11 +1119,12 @@ document.addEventListener("click", e => {
         c.batch = batchId;
       });
       saveLib(lib);
-      captureState = null;
       window.__lastBatch = terms;
-      container.innerHTML = '<div class="card">✅ 已生成 ' + terms.length + ' 张闪卡 ' +
-        '<span id="enrichProg" class="small"></span>' +
+      closeCaptureTask();
+      document.getElementById("result").innerHTML = '<div class="card">✅ 已生成 ' + terms.length +
+        ' 张闪卡 <span id="enrichProg" class="small"></span>' +
         '<div class="actions"><button data-action="start-review-batch">立即复习这批</button></div></div>';
+      toast("✅ 已生成 " + terms.length + " 张闪卡");
       refreshAll();
       (async () => {
         let done = 0;
@@ -1142,6 +1162,7 @@ document.addEventListener("click", e => {
     }
   }
   else if(a === "start-review-batch"){
+    document.getElementById("result").innerHTML = "";
     const terms = window.__lastBatch || [];
     if(terms.length){
       session = {queue: terms.slice(), total: terms.length, done: 0,
@@ -1222,6 +1243,9 @@ document.getElementById("exportBtn").addEventListener("click", ()=>{
   document.getElementById("aiModel").value = s.model || "";
   document.getElementById("aiPreset").value = s.preset || "";
   document.getElementById("aiAuto").checked = s.auto !== false;
+  const asEl = document.getElementById("autoSpeak");
+  if(asEl){ asEl.checked = autoSpeakOn();
+    asEl.addEventListener("change", ()=>{ try{ localStorage.setItem("wordnest_autospeak", asEl.checked ? "1" : "0"); }catch(e){} }); }
   initCropDrag();
   refreshAll();
 })();
