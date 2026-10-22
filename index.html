@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#18202a">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.webmanifest">
-<title>WordNest V2.9 — English Learning</title>
+<title>WordNest V3.0 — English Learning</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#f6f7fb;color:#18202a;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",Arial,sans-serif}
@@ -92,22 +92,17 @@ textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 1
 <body>
 <div class="app">
 <header>
-<h1>🌱 WordNest <span style="font-size:15px;color:#7c3aed">V2.9</span></h1>
+<h1>🌱 WordNest <span style="font-size:15px;color:#7c3aed">V3.0</span></h1>
 <div class="sub">查单词 → 理解 → 建立词汇关系 → 间隔复习</div>
 </header>
 
-<div class="actions" style="margin:4px 0 12px">
-<button id="homeCta" data-action="start-review">开始今日复习</button>
-</div>
-
 <div class="search" style="margin-top:14px">
-<input id="q" autocomplete="off" autocapitalize="none" placeholder="输入英文单词或短语，例如 hello">
+<input id="q" autocomplete="off" autocapitalize="none" placeholder="输入单词，或粘贴一整段英文点选生词">
 <button class="iconbtn" id="micBtn" title="语音输入">🎤</button>
 <button id="searchBtn">查询</button>
 </div>
 <div class="tools">
-<button class="secondary" id="photoBtn">📷 拍照 / 选图</button>
-<button class="secondary" id="pasteBtn">📋 粘贴文字</button>
+<button class="secondary" id="photoBtn">📷 拍照收词</button>
 <input type="file" id="photoInput" accept="image/*" class="hidden">
 </div>
 
@@ -126,22 +121,23 @@ textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 1
 <div id="ocrResult"></div>
 </section>
 
-<section id="pastePanel" class="card hidden">
-<h2 style="margin-top:0">📋 粘贴文字</h2>
-<textarea id="pasteText" placeholder="Paste English text here..."></textarea>
-<div class="actions"><button class="secondary" id="pasteParseBtn">点选生词</button></div>
+<section id="capturePanel" class="card hidden">
+<h2 style="margin-top:0">👆 点选生词</h2>
 <div id="captureArea"></div>
 </section>
 
 <nav>
-<button class="active" data-tab="search">查询</button>
-<button data-tab="review">今日复习<span class="badge hidden" id="dueBadge">0</span></button>
-<button data-tab="library">我的词库</button>
-<button data-tab="settings">设置 · AI</button>
+<button class="active" data-tab="search">🔍 搜索</button>
+<button data-tab="review">🃏 复习<span class="badge hidden" id="dueBadge">0</span></button>
+<button id="navMore" type="button">⚙️ 更多</button>
 </nav>
+<div id="moreMenu" class="tools hidden">
+<button class="secondary" data-menu="library">📚 我的词库</button>
+<button class="secondary" data-menu="settings">⚙️ 设置 · AI</button>
+</div>
 
 <section id="searchTab">
-<div id="result" class="empty">试试 <b>hello</b>、<b>improve</b>、<b>figure out</b><br><span class="small">支持中文输入，如「承担」</span></div>
+<div id="result" class="empty">试试 <b>hello</b>、<b>improve</b>、<b>figure out</b><br><span class="small">支持中文输入，如「承担」；粘贴整段英文可点选生词</span></div>
 </section>
 
 <section id="reviewTab" class="hidden">
@@ -313,6 +309,7 @@ function norm(s){ return String(s||"").trim().toLowerCase().replace(/\s+/g," ");
 function escapeHtml(s){
   return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
+function scrollToEl(el){ try{ if(el) el.scrollIntoView({behavior:"smooth"}); }catch(e){} }
 function toast(msg){
   const t = document.getElementById("toast");
   t.textContent = msg; t.style.display = "block";
@@ -552,6 +549,17 @@ function renderResult(term, d){
 async function search(termArg){
   let term = norm(typeof termArg === "string" ? termArg : document.getElementById("q").value);
   if(!term){ toast("输入一个词，或拍照、粘贴"); return; }
+  const rawInput = typeof termArg === "string" ? termArg : document.getElementById("q").value;
+  if(!hasCJK(rawInput) && rawInput.trim().split(/\s+/).filter(Boolean).length >= 4){
+    const toks = buildTextTokens(rawInput.trim()).filter(t => /[A-Za-z]/.test(t.raw));
+    if(toks.length >= 4){
+      const cp = document.getElementById("capturePanel");
+      cp.classList.remove("hidden");
+      setupCapture(document.getElementById("captureArea"), toks, "paste");
+      scrollToEl(cp);
+      return;
+    }
+  }
   if(hasCJK(term)){
     toast("正在把中文译成英文…");
     const en = await translateText(term, "zh-CN", "en");
@@ -746,12 +754,6 @@ function refreshAll(){
   const total = due + learning;
   const badge = document.getElementById("dueBadge");
   badge.textContent = total; badge.classList.toggle("hidden", total === 0);
-  const cta = document.getElementById("homeCta");
-  if(cta){
-    if(total === 0){ cta.textContent = "今日复习已完成 ✓"; cta.disabled = true; }
-    else if(due === 0){ cta.textContent = "继续复习（" + learning + " 张还没记住）"; cta.disabled = false; }
-    else{ cta.textContent = "开始今日复习（" + total + "）"; cta.disabled = false; }
-  }
   renderLibrary();
 }
 function fmtDue(card){
@@ -993,8 +995,7 @@ function closeCaptureTask(){
   const os = document.getElementById("ocrStatus"); if(os) os.textContent = "";
   const op = document.getElementById("ocrPanel"); if(op) op.classList.add("hidden");
   const ca = document.getElementById("captureArea"); if(ca) ca.innerHTML = "";
-  const pp = document.getElementById("pastePanel"); if(pp) pp.classList.add("hidden");
-  const pt = document.getElementById("pasteText"); if(pt) pt.value = "";
+  const cp2 = document.getElementById("capturePanel"); if(cp2) cp2.classList.add("hidden");
   const fi = document.getElementById("photoInput"); if(fi) fi.value = "";
 }
 function setupCapture(container, tokens, kind){
@@ -1055,14 +1056,21 @@ function startVoice(){
 /* ================= Tabs & global actions ================= */
 function switchTab(name){
   document.querySelectorAll("nav button").forEach(x => x.classList.toggle("active", x.dataset.tab === name));
+  const nm = document.getElementById("navMore");
+  if(nm) nm.classList.toggle("active", name === "library" || name === "settings");
   ["search","review","library","settings"].forEach(id =>
     document.getElementById(id + "Tab").classList.toggle("hidden", id !== name));
   if(name === "library") renderLibrary();
   if(name === "review" && !session){
-    const lib = loadLib(); const due = reviewQueueTerms(lib);
-    document.getElementById("session").innerHTML = due.length
-      ? '<div class="card empty">今天有 <b>' + due.length + '</b> 张卡片到期<br><br><button data-action="start-review">开始复习</button></div>'
-      : '<div class="card empty">今天没有到期的卡片 🎉</div>';
+    const q2 = reviewQueueTerms(loadLib());
+    if(q2.length){
+      session = {queue: q2.slice(), total: q2.length, done: 0,
+        stats: {again:0, hard:0, good:0, easy:0}, current: null, showing: false, requeued: {}};
+      nextCard();
+    }else{
+      document.getElementById("session").innerHTML =
+        '<div class="card empty">今天没有待复习的卡片 🎉</div>';
+    }
   }
 }
 document.addEventListener("click", e => {
@@ -1121,10 +1129,7 @@ document.addEventListener("click", e => {
       saveLib(lib);
       window.__lastBatch = terms;
       closeCaptureTask();
-      document.getElementById("result").innerHTML = '<div class="card">✅ 已生成 ' + terms.length +
-        ' 张闪卡 <span id="enrichProg" class="small"></span>' +
-        '<div class="actions"><button data-action="start-review-batch">立即复习这批</button></div></div>';
-      toast("✅ 已生成 " + terms.length + " 张闪卡");
+      toast("✅ 已生成 " + terms.length + " 张闪卡，已加入复习");
       refreshAll();
       (async () => {
         let done = 0;
@@ -1161,15 +1166,6 @@ document.addEventListener("click", e => {
       })();
     }
   }
-  else if(a === "start-review-batch"){
-    document.getElementById("result").innerHTML = "";
-    const terms = window.__lastBatch || [];
-    if(terms.length){
-      session = {queue: terms.slice(), total: terms.length, done: 0,
-        stats: {again:0, hard:0, good:0, easy:0}, current: null, showing: false, requeued: {}};
-      switchTab("review"); nextCard();
-    }
-  }
   else if(a === "ocr-all"){
     const words = (el.dataset.words||"").split(",").filter(Boolean);
     const lib = loadLib();
@@ -1181,8 +1177,12 @@ document.addEventListener("click", e => {
     toast("已把 " + words.length + " 个词做成闪卡");
   }
 });
-document.querySelectorAll("nav button").forEach(b =>
+document.querySelectorAll("nav button[data-tab]").forEach(b =>
   b.addEventListener("click", ()=> switchTab(b.dataset.tab)));
+document.getElementById("navMore").addEventListener("click", ()=>
+  document.getElementById("moreMenu").classList.toggle("hidden"));
+document.querySelectorAll("#moreMenu button").forEach(b =>
+  b.addEventListener("click", ()=>{ document.getElementById("moreMenu").classList.add("hidden"); switchTab(b.dataset.menu); }));
 document.getElementById("searchBtn").addEventListener("click", ()=> search());
 document.getElementById("q").addEventListener("keydown", e => { if(e.key === "Enter") search(); });
 document.getElementById("micBtn").addEventListener("click", startVoice);
@@ -1194,15 +1194,10 @@ document.getElementById("photoInput").addEventListener("change", e => {
   img.onload = ()=> { document.getElementById("ocrPanel").classList.remove("hidden");
     document.getElementById("ocrResult").innerHTML = ""; document.getElementById("ocrStatus").textContent = "";
     crop.x = 0.1; crop.y = 0.2; crop.w = 0.8; crop.h = 0.35; layoutCropBox();
-    document.getElementById("ocrPanel").scrollIntoView({behavior:"smooth"}); };
+    scrollToEl(document.getElementById("ocrPanel")); };
   img.src = url;
 });
 document.getElementById("ocrRunBtn").addEventListener("click", runOCR);
-document.getElementById("pasteBtn").addEventListener("click", ()=>{
-  const p = document.getElementById("pastePanel");
-  p.classList.toggle("hidden");
-  if(!p.classList.contains("hidden")) p.scrollIntoView({behavior:"smooth"});
-});
 const AI_PRESETS = {openai:{base:"https://api.openai.com/v1", model:"gpt-4o-mini"},
   deepseek:{base:"https://api.deepseek.com/v1", model:"deepseek-chat"},
   qwen:{base:"https://dashscope.aliyuncs.com/compatible-mode/v1", model:"qwen-turbo"},
@@ -1212,13 +1207,6 @@ const AI_PRESETS = {openai:{base:"https://api.openai.com/v1", model:"gpt-4o-mini
 document.getElementById("aiPreset").addEventListener("change", e => {
   const p = AI_PRESETS[e.target.value];
   if(p){ document.getElementById("aiBase").value = p.base; document.getElementById("aiModel").value = p.model; }
-});
-document.getElementById("pasteParseBtn").addEventListener("click", ()=>{
-  const txt = document.getElementById("pasteText").value;
-  if(!txt.trim()){ toast("先粘贴一段英文"); return; }
-  const tokens = buildTextTokens(txt).filter(t => /[A-Za-z]/.test(t.raw));
-  if(!tokens.length){ toast("没有识别到英文单词"); return; }
-  setupCapture(document.getElementById("captureArea"), tokens, "paste");
 });
 document.getElementById("ocrCancelBtn").addEventListener("click", ()=>
   document.getElementById("ocrPanel").classList.add("hidden"));
