@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#18202a">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.webmanifest">
-<title>WordNest V2.6 — English Learning</title>
+<title>WordNest V2.7 — English Learning</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#f6f7fb;color:#18202a;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",Arial,sans-serif}
@@ -92,7 +92,7 @@ textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 1
 <body>
 <div class="app">
 <header>
-<h1>🌱 WordNest <span style="font-size:15px;color:#7c3aed">V2.6</span></h1>
+<h1>🌱 WordNest <span style="font-size:15px;color:#7c3aed">V2.7</span></h1>
 <div class="sub">查单词 → 理解 → 建立词汇关系 → 间隔复习</div>
 </header>
 
@@ -165,7 +165,7 @@ textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 1
 <option value="openai">OpenAI</option>
 <option value="deepseek">DeepSeek</option>
 <option value="qwen">通义千问</option>
-<option value="moonshot">Kimi</option>
+<option value="moonshot">Kimi</option><option value="gemini">Google Gemini（免费额度）</option><option value="siliconflow">硅基流动</option>
 </select></div>
 <div class="field"><label>API 地址</label><input id="aiBase" placeholder="https://api.openai.com/v1"></div>
 <div class="field"><label>API Key</label><input id="aiKey" type="password" placeholder="sk-..."></div>
@@ -292,6 +292,14 @@ function applyGrade(card, grade){
 }
 /* ================= SRS CORE END ================= */
 
+function learningTerms(lib){
+  const now = Date.now();
+  return Object.keys(lib).filter(t => (lib[t].state || "new") === "learning" && (lib[t].due || 0) > now)
+    .sort((a,b) => (lib[a].due||0) - (lib[b].due||0));
+}
+function reviewQueueTerms(lib){
+  return dueTerms(lib).concat(learningTerms(lib));
+}
 function dueTerms(lib, now){
   now = now || Date.now();
   return Object.keys(lib).filter(k => !lib[k].due || lib[k].due <= now)
@@ -623,7 +631,7 @@ function startReview(onlyTerm){
   const lib = loadLib();
   let queue;
   if(onlyTerm){ queue = [onlyTerm]; }
-  else{ queue = dueTerms(lib); }
+  else{ queue = reviewQueueTerms(lib); }
   if(!queue.length){
     switchTab("review");
     document.getElementById("session").innerHTML =
@@ -640,10 +648,13 @@ function nextCard(){
   if(!session || !session.queue.length){
     const s = session ? session.stats : {again:0, hard:0, good:0, easy:0};
     const total = session ? session.total : 0;
+    const leftLearn = learningTerms(loadLib()).length;
     el.innerHTML = '<div class="card fc"><div style="font-size:44px">🎉</div>' +
       '<h2>本轮复习完成</h2>' +
       '<div class="meaning">共复习 ' + total + ' 张 · Again ' + s.again + ' · Hard ' + s.hard +
       ' · Good ' + s.good + ' · Easy ' + s.easy + '</div>' +
+      (leftLearn ? '<div class="meaning" style="margin-top:8px">还有 <b>' + leftLearn +
+        ' 张</b>没记住，随时点首页「继续复习」再练。</div>' : '') +
       '<div class="actions"><button data-action="start-review">再看今日到期</button>' +
       '<button class="secondary" data-action="goto-search">去查新词</button></div></div>';
     session = null; refreshAll(); return;
@@ -676,8 +687,9 @@ function renderCardBack(){
   const d = card.detail || findLocal(term) || {zh:"", meaning:"（暂无释义，可在查询页用 AI 深挖补充）", example:"", family:[], root:""};
   const gBtn = (grade, cls, label) => {
     const p = srsCalc(card, grade);
+    const zh = {again:"不认识", hard:"模糊", good:"认识", easy:"简单"}[grade] || "";
     return '<button class="' + cls + '" data-action="grade" data-grade="' + grade + '">' + label +
-      '<span class="iv">' + p.label + '</span></button>';
+      (zh ? " · " + zh : "") + '<span class="iv">' + p.label + '</span></button>';
   };
   document.getElementById("session").innerHTML =
     '<div class="card">' + progressHtml() +
@@ -718,12 +730,15 @@ function gradeCurrent(grade){
 function refreshAll(){
   const lib = loadLib();
   const due = dueTerms(lib).length;
+  const learning = learningTerms(lib).length;
+  const total = due + learning;
   const badge = document.getElementById("dueBadge");
-  badge.textContent = due; badge.classList.toggle("hidden", due === 0);
+  badge.textContent = total; badge.classList.toggle("hidden", total === 0);
   const cta = document.getElementById("homeCta");
   if(cta){
-    cta.textContent = due > 0 ? "开始今日复习（" + due + "）" : "今日复习已完成 ✓";
-    cta.disabled = due === 0;
+    if(total === 0){ cta.textContent = "今日复习已完成 ✓"; cta.disabled = true; }
+    else if(due === 0){ cta.textContent = "继续复习（" + learning + " 张还没记住）"; cta.disabled = false; }
+    else{ cta.textContent = "开始今日复习（" + total + "）"; cta.disabled = false; }
   }
   renderLibrary();
 }
@@ -1021,7 +1036,7 @@ function switchTab(name){
     document.getElementById(id + "Tab").classList.toggle("hidden", id !== name));
   if(name === "library") renderLibrary();
   if(name === "review" && !session){
-    const lib = loadLib(); const due = dueTerms(lib);
+    const lib = loadLib(); const due = reviewQueueTerms(lib);
     document.getElementById("session").innerHTML = due.length
       ? '<div class="card empty">今天有 <b>' + due.length + '</b> 张卡片到期<br><br><button data-action="start-review">开始复习</button></div>'
       : '<div class="card empty">今天没有到期的卡片 🎉</div>';
@@ -1157,7 +1172,9 @@ document.getElementById("pasteBtn").addEventListener("click", ()=>{
 const AI_PRESETS = {openai:{base:"https://api.openai.com/v1", model:"gpt-4o-mini"},
   deepseek:{base:"https://api.deepseek.com/v1", model:"deepseek-chat"},
   qwen:{base:"https://dashscope.aliyuncs.com/compatible-mode/v1", model:"qwen-turbo"},
-  moonshot:{base:"https://api.moonshot.cn/v1", model:"moonshot-v1-8k"}};
+  moonshot:{base:"https://api.moonshot.cn/v1", model:"moonshot-v1-8k"},
+  gemini:{base:"https://generativelanguage.googleapis.com/v1beta/openai/", model:"gemini-2.5-flash"},
+  siliconflow:{base:"https://api.siliconflow.cn/v1", model:"deepseek-ai/DeepSeek-V3"}};
 document.getElementById("aiPreset").addEventListener("change", e => {
   const p = AI_PRESETS[e.target.value];
   if(p){ document.getElementById("aiBase").value = p.base; document.getElementById("aiModel").value = p.model; }
