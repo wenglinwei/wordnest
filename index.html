@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#18202a">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.webmanifest">
-<title>WordNest V3.0 — English Learning</title>
+<title>WordNest V3.1 — English Learning</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#f6f7fb;color:#18202a;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",Arial,sans-serif}
@@ -78,6 +78,11 @@ footer{text-align:center;color:#9ca3af;font-size:12px;margin-top:25px;line-heigh
 .spin{display:inline-block;width:16px;height:16px;border:2.5px solid #d1d5db;border-top-color:#18202a;border-radius:50%;animation:sp 0.8s linear infinite;vertical-align:-3px;margin-right:8px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .recording{background:#ef4444!important;color:#fff!important}
+#q.searched{color:#9ca3af}
+.tag .gl{color:#6b7280;font-weight:400;font-size:12px}
+.node .gl{display:block;font-size:11px;font-weight:400;color:#6b7280}
+.capzh{color:#047857;font-weight:700;font-size:15px;margin-top:2px}
+.histlbl{font-size:12px;color:#9ca3af;margin:8px 2px 0}
 .capline{padding:3px 0;border-bottom:1px dashed #e8ebf0}
 .capline:last-child{border-bottom:0}
 .tok{display:inline-block;padding:2px 4px;margin:1px 0;border-radius:7px;cursor:pointer;font-size:17px;line-height:1.5}
@@ -92,7 +97,7 @@ textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 1
 <body>
 <div class="app">
 <header>
-<h1>🌱 WordNest <span style="font-size:15px;color:#7c3aed">V3.0</span></h1>
+<h1>🌱 WordNest <span style="font-size:15px;color:#7c3aed">V3.1</span></h1>
 <div class="sub">查单词 → 理解 → 建立词汇关系 → 间隔复习</div>
 </header>
 
@@ -101,6 +106,7 @@ textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 1
 <button class="iconbtn" id="micBtn" title="语音输入">🎤</button>
 <button id="searchBtn">查询</button>
 </div>
+<div id="searchHistory" class="hidden"><div class="histlbl">最近查询（点一下再看）</div><div class="chips" id="historyChips" style="margin-top:6px"></div></div>
 <div class="tools">
 <button class="secondary" id="photoBtn">📷 拍照收词</button>
 <input type="file" id="photoInput" accept="image/*" class="hidden">
@@ -146,7 +152,7 @@ textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 1
 
 <section id="libraryTab" class="hidden">
 <div class="card">
-<h2>我的词库</h2>
+<div style="display:flex;align-items:center;justify-content:space-between"><h2 style="margin:0">我的词库</h2><button class="secondary" data-action="goto-search">收起 ▲</button></div>
 <div id="libraryList"></div>
 </div>
 </section>
@@ -398,17 +404,40 @@ async function fetchDictEntry(word){
     try{
       const r = await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(word));
       if(r.ok){
-        const j = await r.json(); const e = Array.isArray(j) ? j[0] : null;
-        if(!e) return null;
-        const m0 = (e.meanings && e.meanings[0]) || {};
-        const d0 = (m0.definitions && m0.definitions[0]) || {};
-        let audio = "";
-        (e.phonetics||[]).forEach(p => { if(!audio && p.audio) audio = p.audio; });
-        const syns = new Set();
-        (e.meanings||[]).forEach(m => { (m.synonyms||[]).slice(0,5).forEach(x => syns.add(x)); });
+        const j = await r.json();
+        const entries = Array.isArray(j) ? j : (j ? [j] : []);
+        if(!entries.length) return null;
+        /* The free dictionary sometimes puts a rare/proper-noun sense first
+           (e.g. "revere" -> noun "A revers", the place-name pronunciation).
+           Pick the meaning with the most definitions as the primary sense,
+           keep the rest as secondary senses, and take the phonetic from the
+           entry that owns the primary sense (prefer one paired with audio). */
+        let best = null; const senses = []; const syns = new Set(); let audio = "";
+        entries.forEach(e => {
+          (e.phonetics||[]).forEach(p => { if(!audio && p.audio) audio = p.audio; });
+          (e.meanings||[]).forEach(m => {
+            (m.synonyms||[]).slice(0,5).forEach(x => syns.add(x));
+            const defs = m.definitions || [];
+            if(defs.length && senses.length < 4)
+              senses.push({pos: m.partOfSpeech || "", def: defs[0].definition || ""});
+            if(defs.length && (!best || defs.length > best.defCount))
+              best = {entry: e, meaning: m, defCount: defs.length};
+          });
+        });
+        if(!best) return null;
+        const e = best.entry, m0 = best.meaning, d0 = (m0.definitions || [])[0] || {};
+        const ph = e.phonetics || [];
+        let phonetic = ((ph.find(p => p.text && p.audio) || ph.find(p => p.text) || {}).text) || e.phonetic || "";
+        if(!phonetic){
+          for(const en of entries){
+            if(en.phonetic){ phonetic = en.phonetic; break; }
+            const f = (en.phonetics||[]).find(p => p.text);
+            if(f){ phonetic = f.text; break; }
+          }
+        }
         return {pos: m0.partOfSpeech || "", meaning: d0.definition || "",
-          example: d0.example || "", phonetic: e.phonetic || ((e.phonetics||[]).find(p => p.text)||{}).text || "",
-          audio: audio, synonyms: Array.from(syns)};
+          example: d0.example || "", phonetic: phonetic,
+          audio: audio, synonyms: Array.from(syns), senses: senses};
       }
     }catch(err){ /* retry once */ }
   }
@@ -442,6 +471,36 @@ async function translateText(text, from, to){
     return t && t.toLowerCase() !== String(text).toLowerCase() ? t : "";
   }catch(e){ return ""; }
 }
+async function translateWord(term, pos){
+  /* Bare-word translation can be hijacked by proper nouns in the free
+     translation memory ("revere" -> 里维尔, the city). Asking with the
+     part of speech ("to revere") disambiguates; also prefer matches
+     with a decent quality score over quality-0 contributed entries. */
+  const tries = [];
+  if(pos && /verb/i.test(pos)) tries.push("to " + term);
+  tries.push(term);
+  for(const q of tries){
+    try{
+      const r = await fetch("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(q) +
+        "&langpair=en|zh-CN");
+      if(!r.ok) continue;
+      const j = await r.json();
+      const cands = [];
+      (j.matches || []).forEach(m => {
+        if(m && m.translation && hasCJK(m.translation) &&
+            String(m.translation).toLowerCase() !== q.toLowerCase())
+          cands.push({t: m.translation, q: parseFloat(m.quality) || 0, m: parseFloat(m.match) || 0});
+      });
+      cands.sort((a, b) => (b.q - a.q) || (b.m - a.m));
+      const good = cands.find(c => c.q >= 50);
+      if(good) return good.t;
+      const rd = (j.responseData && j.responseData.translatedText) || "";
+      if(rd && hasCJK(rd) && rd.toLowerCase() !== q.toLowerCase()) return rd;
+      if(cands.length) return cands[0].t;
+    }catch(e){ /* try next phrasing */ }
+  }
+  return "";
+}
 async function fetchOnline(term){
   let detail = null; let lemma = "";
   if(!/\s/.test(term)){
@@ -454,17 +513,19 @@ async function fetchOnline(term){
     }
     if(entry){
       detail = {pos: entry.pos, zh: "", meaning: entry.meaning, example: entry.example,
-        phonetic: entry.phonetic, audio: entry.audio, family: [], root: "", source: "online", synonyms: entry.synonyms};
+        phonetic: entry.phonetic, audio: entry.audio, family: [], root: "", source: "online", synonyms: entry.synonyms,
+        senses: entry.senses || [], v: 2};
       if(lemma) detail.lemma = lemma;
     }
     const fam = await fetchFamily(term, lemma, entry ? entry.synonyms : []);
-    detail = detail || {pos:"", zh:"", meaning:"", example:"", family:[], root:"", source:"online"};
+    detail = detail || {pos:"", zh:"", meaning:"", example:"", family:[], root:"", source:"online", v:2};
     detail.family = mergeFamily([detail.family, fam], term, 8);
     detail.root = simpleRootNote(term, lemma);
   }else{
-    detail = {pos:"", zh:"", meaning:"", example:"", family:[], root:"", source:"online"};
+    detail = {pos:"", zh:"", meaning:"", example:"", family:[], root:"", source:"online", v:2};
   }
-  const zh = await translateText(term, "en", "zh-CN");
+  const zh = /\s/.test(term) ? await translateText(term, "en", "zh-CN")
+    : await translateWord(term, detail.pos || "");
   if(zh){ detail.zh = detail.zh || zh; }
   delete detail.synonyms;
   return (detail.meaning || detail.zh || (detail.family && detail.family.length)) ? detail : null;
@@ -517,14 +578,19 @@ function speakBtn(text, audio){
     '" data-audio="' + escapeHtml(audio||"") + '" title="发音">🔊</button>';
 }
 function detailHtml(term, d, gid){
+  const gloss = d.familyGloss || {};
   const fam = (d.family||[]).map(x =>
-    '<span class="tag" data-action="lookup" data-term="' + escapeHtml(x) + '">' + escapeHtml(x) + '</span>').join("");
+    '<span class="tag" data-action="lookup" data-term="' + escapeHtml(x) + '">' + escapeHtml(x) +
+    (gloss[x] ? '<span class="gl"> · ' + escapeHtml(gloss[x]) + '</span>' : '') + '</span>').join("");
   return '<div class="card">' +
     '<div><span class="word">' + escapeHtml(term) + '</span>' + speakBtn(term, d.audio) +
     (d.phonetic ? '<span class="phonetic">' + escapeHtml(d.phonetic) + '</span>' : '') + '</div>' +
-    '<div class="pos">' + escapeHtml(d.pos||"") + '</div>' +
+    (d.pos ? '<div class="pos">' + escapeHtml(d.pos) + '</div>' : '') +
     (d.zh ? '<div class="zh">' + escapeHtml(d.zh) + '</div>' : '') +
     (d.meaning ? '<div class="meaning">' + escapeHtml(d.meaning) + '</div>' : '') +
+    ((d.senses && d.senses.length > 1) ? '<div class="small" style="margin-top:6px">' +
+      d.senses.filter(s => s.def && s.def !== d.meaning).slice(0, 3).map(s =>
+        escapeHtml(s.pos) + ' · ' + escapeHtml(s.def)).join('<br>') + '</div>' : '') +
     ((d.contextWords && d.contextWords.length) ? '<div class="example" style="background:#fffbeb">📍 同批选词：' +
       d.contextWords.map(w => '<span class="tag" data-action="lookup-term" data-term="' + escapeHtml(w) + '">' + escapeHtml(w) + '</span>').join(' ') +
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>'
@@ -543,14 +609,43 @@ function detailHtml(term, d, gid){
   '</div>';
 }
 function renderResult(term, d){
-  document.getElementById("result").innerHTML = detailHtml(term, d, "graphMain");
-  drawGraph(document.getElementById("graphMain"), term, d.family||[]);
+  const el = document.getElementById("result");
+  el.dataset.term = term;
+  el.innerHTML = detailHtml(term, d, "graphMain");
+  drawGraph(document.getElementById("graphMain"), term, d.family||[], d.familyGloss || {});
+  enrichFamilyGloss(term, d);
+}
+async function glossFor(word){
+  const local = findLocal(word);
+  if(local && local.zh) return local.zh.split(/[；;]/)[0];
+  const t = await translateText(word, "en", "zh-CN");
+  return t ? t.split(/[；;]/)[0].slice(0, 12) : "";
+}
+async function enrichFamilyGloss(term, d){
+  const fam = (d && d.family) || [];
+  if(!fam.length) return;
+  const gloss = Object.assign({}, d.familyGloss || {});
+  const missing = fam.filter(x => !gloss[x]);
+  if(!missing.length) return;
+  await Promise.all(missing.map(async x => {
+    try{ const g = await glossFor(x); if(g) gloss[x] = g; }catch(e){}
+  }));
+  if(!Object.keys(gloss).length) return;
+  const lib = loadLib(); const card = lib[term];
+  if(!card || !card.detail) return;
+  card.detail.familyGloss = gloss; saveLib(lib);
+  const el = document.getElementById("result");
+  if(el && el.dataset.term === term){
+    el.innerHTML = detailHtml(term, card.detail, "graphMain");
+    drawGraph(document.getElementById("graphMain"), term, card.detail.family || [], gloss);
+  }
 }
 async function search(termArg){
   let term = norm(typeof termArg === "string" ? termArg : document.getElementById("q").value);
   if(!term){ toast("输入一个词，或拍照、粘贴"); return; }
-  const rawInput = typeof termArg === "string" ? termArg : document.getElementById("q").value;
-  if(!hasCJK(rawInput) && rawInput.trim().split(/\s+/).filter(Boolean).length >= 4){
+  const fromInput = typeof termArg !== "string";
+  const rawInput = fromInput ? document.getElementById("q").value : termArg;
+  if(fromInput && !hasCJK(rawInput) && rawInput.trim().split(/\s+/).filter(Boolean).length >= 4){
     const toks = buildTextTokens(rawInput.trim()).filter(t => /[A-Za-z]/.test(t.raw));
     if(toks.length >= 4){
       const cp = document.getElementById("capturePanel");
@@ -568,6 +663,7 @@ async function search(termArg){
     toast("按英文词查询：" + term);
   }
   document.getElementById("q").value = term;
+  noteSearched(term);
   switchTab("search");
   const lib = loadLib();
   const card = ensureCard(lib, term);
@@ -578,7 +674,7 @@ async function search(termArg){
     card.detail = local; card.unknown = false; saveLib(lib);
     renderResult(term, local); refreshAll(); return;
   }
-  if(card.detail && card.detail.meaning){
+  if(card.detail && card.detail.meaning && (card.detail.v || 0) >= 2){
     saveLib(lib); renderResult(term, card.detail); refreshAll(); return;
   }
   const result = document.getElementById("result");
@@ -598,6 +694,8 @@ async function search(termArg){
     }
     card2.detail = online; card2.unknown = false; saveLib(lib2);
     renderResult(term, online);
+  }else if(card.detail && (card.detail.meaning || card.detail.zh)){
+    saveLib(lib2); renderResult(term, card.detail);
   }else{
     card2.unknown = true; saveLib(lib2);
     result.innerHTML = '<div class="card">' +
@@ -612,8 +710,31 @@ async function search(termArg){
   refreshAll();
 }
 
+/* ================= Search history (grey, tap to revisit) ================= */
+const HIST_KEY = "wordnest_history_v1";
+function loadHistory(){ try{ return JSON.parse(localStorage.getItem(HIST_KEY) || "[]"); }catch(e){ return []; } }
+function noteSearched(term){
+  try{
+    let h = loadHistory().filter(x => x !== term);
+    h.unshift(term); h = h.slice(0, 24);
+    localStorage.setItem(HIST_KEY, JSON.stringify(h));
+  }catch(e){}
+  renderHistory();
+  const q = document.getElementById("q");
+  if(q) q.classList.add("searched");
+}
+function renderHistory(){
+  const wrap = document.getElementById("searchHistory");
+  const chips = document.getElementById("historyChips");
+  if(!wrap || !chips) return;
+  const h = loadHistory();
+  wrap.classList.toggle("hidden", !h.length);
+  chips.innerHTML = h.map(x =>
+    '<span class="chip" data-action="lookup" data-term="' + escapeHtml(x) + '">' + escapeHtml(x) + '</span>').join("");
+}
+
 /* ================= Relation graph (kept from V1, clickable) ================= */
-function drawGraph(g, term, family){
+function drawGraph(g, term, family, glossMap){
   if(!g) return;
   g.innerHTML = "";
   const cx = 50, cy = 50;
@@ -629,7 +750,9 @@ function drawGraph(g, term, family){
     line.style.transform = "rotate(" + (Math.atan2(dy,dx)*180/Math.PI) + "deg)";
     g.appendChild(line);
     const n = document.createElement("div");
-    n.className = "node"; n.textContent = w;
+    n.className = "node";
+    const gl = (glossMap || {})[w];
+    n.innerHTML = escapeHtml(w) + (gl ? '<span class="gl">' + escapeHtml(gl) + '</span>' : '');
     n.style.left = "calc(" + x + "% - 30px)"; n.style.top = "calc(" + y + "% - 18px)";
     n.addEventListener("click", ()=> search(w));
     g.appendChild(n);
@@ -647,7 +770,7 @@ function startReview(onlyTerm){
   const lib = loadLib();
   let queue;
   if(onlyTerm){ queue = [onlyTerm]; }
-  else{ queue = reviewQueueTerms(lib); }
+  else{ queue = Array.from(new Set(reviewQueueTerms(lib))); }
   if(!queue.length){
     switchTab("review");
     document.getElementById("session").innerHTML =
@@ -670,7 +793,7 @@ function nextCard(){
       '<div class="meaning">共复习 ' + total + ' 张 · Again ' + s.again + ' · Hard ' + s.hard +
       ' · Good ' + s.good + ' · Easy ' + s.easy + '</div>' +
       (leftLearn ? '<div class="meaning" style="margin-top:8px">还有 <b>' + leftLearn +
-        ' 张</b>没记住，随时点首页「继续复习」再练。</div>' : '') +
+        ' 张</b>没记住，约 10 分钟后点下方「继续复习」再练。</div>' : '') +
       '<div class="actions"><button data-action="start-review">继续复习</button>' +
       '<button class="secondary" data-action="goto-search">去查新词</button></div></div>';
     session = null; refreshAll(); return;
@@ -712,9 +835,12 @@ function renderCardBack(){
     '<div class="card">' + progressHtml() +
     '<div><span class="word" data-action="lookup-term" data-term="' + escapeHtml(term) + '" style="font-size:26px;cursor:pointer">' + escapeHtml(term) + '</span>' + speakBtn(term, d.audio) +
     (d.phonetic ? '<span class="phonetic">' + escapeHtml(d.phonetic) + '</span>' : '') + '</div>' +
-    '<div class="pos">' + escapeHtml(d.pos||"") + '</div>' +
+    (d.pos ? '<div class="pos">' + escapeHtml(d.pos) + '</div>' : '') +
     (d.zh ? '<div class="zh">' + escapeHtml(d.zh) + '</div>' : '') +
     (d.meaning ? '<div class="meaning">' + escapeHtml(d.meaning) + '</div>' : '') +
+    ((d.senses && d.senses.length > 1) ? '<div class="small" style="margin-top:6px">' +
+      d.senses.filter(s => s.def && s.def !== d.meaning).slice(0, 3).map(s =>
+        escapeHtml(s.pos) + ' · ' + escapeHtml(s.def)).join('<br>') + '</div>' : '') +
     (d.example ? '<div class="example">💬 ' + escapeHtml(d.example) +
       ' <button class="speakbtn" data-action="speak" data-text="' + escapeHtml(d.example) + '">🔊</button></div>' : '') +
     ((d.contextWords && d.contextWords.length) ? '<div class="example" style="background:#fffbeb">📍 同批选词：' +
@@ -724,7 +850,8 @@ function renderCardBack(){
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>' : '')) +
     (d.root ? '<div class="meaning" style="margin-top:10px">🌱 ' + escapeHtml(d.root) + '</div>' : '') +
     ((d.family && d.family.length) ? '<div class="tags">' + d.family.map(x =>
-      '<span class="tag" data-action="lookup" data-term="' + escapeHtml(x) + '">' + escapeHtml(x) + '</span>').join("") + '</div>' : '') +
+      '<span class="tag" data-action="lookup" data-term="' + escapeHtml(x) + '">' + escapeHtml(x) +
+      ((d.familyGloss || {})[x] ? '<span class="gl"> · ' + escapeHtml(d.familyGloss[x]) + '</span>' : '') + '</span>').join("") + '</div>' : '') +
     '<h3 style="margin-bottom:4px">你记得怎么样？</h3>' +
     '<div class="grades">' +
       gBtn("again","g-again","Again") + gBtn("hard","g-hard","Hard") +
@@ -738,10 +865,8 @@ function gradeCurrent(grade){
   if(!card.detail){ const local = findLocal(term); if(local) card.detail = local; }
   applyGrade(card, grade); saveLib(lib);
   session.stats[grade]++; session.done++;
-  /* Anki-style: Again cards come back once more at the end of this session */
-  if(grade === "again" && !session.requeued[term]){
-    session.requeued[term] = 1; session.queue.push(term); session.total++;
-  }
+  /* Again cards are scheduled +10min and stay counted as pending (badge),
+     but no longer repeat inside this session — review goes straight through. */
   session.current = null;
   nextCard(); /* counts refresh once at session end (in nextCard), not per card */
 }
@@ -841,11 +966,28 @@ async function runOCR(){
   const ctx = canvas.getContext("2d");
   ctx.drawImage(img, img.naturalWidth*crop.x, img.naturalHeight*crop.y,
     img.naturalWidth*crop.w, img.naturalHeight*crop.h, 0, 0, canvas.width, canvas.height);
+  /* Print-friendly copy for recognition: fade light marks (pencil underlines,
+     faint handwriting) to white so the engine mostly sees printed text.
+     The original canvas is kept untouched for mark detection. */
+  const ocrCanvas = document.createElement("canvas");
+  ocrCanvas.width = canvas.width; ocrCanvas.height = canvas.height;
+  const octx = ocrCanvas.getContext("2d");
+  octx.drawImage(canvas, 0, 0);
+  try{
+    const idata = octx.getImageData(0, 0, ocrCanvas.width, ocrCanvas.height);
+    const px = idata.data;
+    for(let i = 0; i < px.length; i += 4){
+      const lum = 0.299*px[i] + 0.587*px[i+1] + 0.114*px[i+2];
+      const v = lum <= 40 ? 0 : (lum >= 175 ? 255 : Math.round((lum - 40) * 255 / 135));
+      px[i] = px[i+1] = px[i+2] = v;
+    }
+    octx.putImageData(idata, 0, 0);
+  }catch(e){ /* fall back to the raw crop */ }
   status.innerHTML = '<span class="spin"></span>正在加载 OCR 引擎并识别框选区域…';
   out.innerHTML = "";
   try{
     await loadTesseract();
-    const res = await Tesseract.recognize(canvas, "eng", {
+    const res = await Tesseract.recognize(ocrCanvas, "eng", {
       logger: m => { if(m.status === "recognizing text") status.innerHTML = '<span class="spin"></span>识别中 ' + Math.round((m.progress||0)*100) + "%…"; }
     });
     let words = (res.data && res.data.words) || [];
@@ -859,10 +1001,14 @@ async function runOCR(){
     }else{
       tokens = buildTextTokens((res.data && res.data.text) || "");
     }
-    tokens = tokens.filter(t => /[A-Za-z]/.test(t.raw));
+    const withLetters = tokens.filter(t => /[A-Za-z]/.test(t.raw));
+    tokens = withLetters.filter(t => t.conf === null || t.conf === undefined || t.conf >= 30);
+    const ignored = withLetters.length - tokens.length;
     if(!tokens.length){ status.textContent = "框选区域里没有识别到英文，试着框紧一点、光线好一点。"; return; }
     const pre = tokens.filter(t => t.selected).length;
-    status.textContent = "识别完成：共 " + tokens.length + " 个词，机器预选了 " + pre + " 个疑似被标记的词。请核对：点词可以选中/取消，连续选中的词会作为一个短语收入。";
+    status.textContent = "识别完成：共 " + tokens.length + " 个词，机器预选了 " + pre + " 个疑似被标记的词" +
+      (ignored ? "，已自动忽略 " + ignored + " 个低置信度词（多为手写或污渍）" : "") +
+      "。点词选中/取消，选中后自动翻译；分开点取各自成卡，同行连选合成一张短语卡。";
     setupCapture(out, tokens, "photo");
   }catch(err){
     status.textContent = String(err && err.message || err);
@@ -902,7 +1048,8 @@ function computeGroups(tokens, splitSet){
   const groups = []; let cur = null;
   tokens.forEach((t, i) => {
     if(t.selected){
-      if(cur && !splitSet.has(i) && cur.indices[cur.indices.length-1] === i-1){ cur.indices.push(i); }
+      const prev = cur ? cur.indices[cur.indices.length - 1] : -1;
+      if(cur && !splitSet.has(i) && prev === i - 1 && (tokens[prev].line || 0) === (t.line || 0)){ cur.indices.push(i); }
       else{ cur = {indices:[i], start:i}; groups.push(cur); }
     }else cur = null;
   });
@@ -925,7 +1072,7 @@ function buildTextTokens(text){
 }
 function buildOcrTokens(words){
   const items = words.filter(w => w && w.text && w.bbox).map(w => ({
-    raw: String(w.text).trim(), bbox: w.bbox, selected: false, mark: null
+    raw: String(w.text).trim(), bbox: w.bbox, selected: false, mark: null, conf: (typeof w.confidence === "number" ? w.confidence : null)
   })).filter(t => t.raw);
   /* cluster into lines by vertical overlap, then sort by x */
   items.sort((a,b) => (a.bbox.y0 - b.bbox.y0) || (a.bbox.x0 - b.bbox.x0));
@@ -997,13 +1144,16 @@ function closeCaptureTask(){
   const ca = document.getElementById("captureArea"); if(ca) ca.innerHTML = "";
   const cp2 = document.getElementById("capturePanel"); if(cp2) cp2.classList.add("hidden");
   const fi = document.getElementById("photoInput"); if(fi) fi.value = "";
+  const ci = document.getElementById("cropImg"); if(ci) ci.removeAttribute("src");
 }
 function setupCapture(container, tokens, kind){
-  captureState = {container: container, tokens: tokens, splitSet: new Set(), kind: kind};
+  captureState = {container: container, tokens: tokens, splitSet: new Set(), kind: kind, trans: {}, source: ""};
   renderCapture();
 }
 function renderCapture(){
   const st = captureState; if(!st) return;
+  const srcEl = document.getElementById("capSource");
+  if(srcEl) st.source = srcEl.value;
   const tokens = st.tokens;
   const selCount = tokens.filter(t => t.selected).length;
   const groups = computeGroups(tokens, st.splitSet);
@@ -1016,19 +1166,48 @@ function renderCapture(){
   tokens.forEach((t, i) => { const L = t.line || 0; if(!lineMap.has(L)) lineMap.set(L, []); lineMap.get(L).push(i); });
   const linesHtml = Array.from(lineMap.entries()).sort((x,y) => x[0]-y[0])
     .map(([L, idxs]) => '<div class="capline">' + idxs.map(spanHtml).join(" ") + '</div>').join("");
-  const lineTextOf = li => tokens.filter(t => (t.line || 0) === li).map(t => t.raw).join(" ");
-  const groupHtml = groups.length ? groups.map(g =>
-    '<div class="item"><div><b>' + escapeHtml(g.text) + '</b>' +
-    '<div class="small">' + escapeHtml(lineTextOf(tokens[g.start].line || 0)) + '</div></div>' +
-    (g.indices.length > 1 ? '<button class="secondary" data-action="cap-split" data-start="' + g.start + '">拆开</button>' : '') +
-    '</div>').join("")
-    : '<div class="small">点词选中。</div>';
   st.container.innerHTML =
     '<div class="captext">' + linesHtml + '</div>' +
-    '<div class="small" style="margin-top:8px">已选 ' + selCount + ' 词 → ' + groups.length + ' 张卡（连续选中 = 一个短语）</div>' +
-    '<div class="field"><label>来源（可选）</label><input id="capSource" placeholder="如：马太福音 5章"></div>' +
-    '<div>' + groupHtml + '</div>' +
+    '<div class="small" style="margin-top:8px">已选 ' + selCount + ' 词 → ' + groups.length + ' 张卡（分开点取 = 各自一张卡；同行连选 = 一张短语卡）</div>' +
+    '<div class="field"><label>来源（可选）</label><input id="capSource" placeholder="如：马太福音 5章" value="' + escapeHtml(st.source || "") + '"></div>' +
+    '<div id="capGroups"></div>' +
     '<div class="actions"><button data-action="cap-confirm" ' + (groups.length ? "" : "disabled") + '>🃏 直接做成闪卡（' + groups.length + '）</button></div>';
+  renderCapGroups();
+  ensureCapTranslations();
+}
+function renderCapGroups(){
+  const st = captureState; if(!st) return;
+  const el = document.getElementById("capGroups"); if(!el) return;
+  const tokens = st.tokens;
+  const groups = computeGroups(tokens, st.splitSet);
+  const lineTextOf = li => tokens.filter(t => (t.line || 0) === li).map(t => t.raw).join(" ");
+  el.innerHTML = groups.length ? groups.map(g => {
+    const tr = (st.trans || {})[g.text];
+    const zh = (tr === undefined || tr === null) ? '<div class="small">翻译中…</div>'
+      : (tr ? '<div class="capzh">' + escapeHtml(tr) + '</div>'
+            : '<div class="small">（暂无翻译，确认后会再查）</div>');
+    return '<div class="item"><div><b>' + escapeHtml(g.text) + '</b>' +
+      '<span class="small"> ' + (g.indices.length > 1 ? '· 短语' : '· 单词') + '</span>' + zh +
+      '<div class="small">' + escapeHtml(lineTextOf(tokens[g.start].line || 0)) + '</div></div>' +
+      (g.indices.length > 1 ? '<button class="secondary" data-action="cap-split" data-start="' + g.start + '">拆开</button>' : '') +
+      '</div>';
+  }).join("") : '<div class="small">点词选中，选中后自动翻译。</div>';
+}
+async function ensureCapTranslations(){
+  const st = captureState; if(!st) return;
+  st.trans = st.trans || {};
+  const groups = computeGroups(st.tokens, st.splitSet);
+  const todo = groups.filter(g => st.trans[g.text] === undefined);
+  if(!todo.length) return;
+  todo.forEach(g => { st.trans[g.text] = null; });
+  renderCapGroups();
+  for(const g of todo){
+    let zh = "";
+    try{ zh = await translateText(g.text, "en", "zh-CN"); }catch(e){}
+    if(captureState !== st) return;
+    st.trans[g.text] = zh || "";
+    renderCapGroups();
+  }
 }
 
 /* ================= Voice recognition input ================= */
@@ -1060,11 +1239,19 @@ function switchTab(name){
   if(nm) nm.classList.toggle("active", name === "library" || name === "settings");
   ["search","review","library","settings"].forEach(id =>
     document.getElementById(id + "Tab").classList.toggle("hidden", id !== name));
+  const cpX = document.getElementById("capturePanel");
+  if(cpX){
+    if(name === "search" && captureState && captureState.kind === "paste") cpX.classList.remove("hidden");
+    else if(name !== "search") cpX.classList.add("hidden");
+  }
+  const opX = document.getElementById("ocrPanel");
+  if(opX && name !== "search") opX.classList.add("hidden");
   if(name === "library") renderLibrary();
   if(name === "review" && !session){
     const q2 = reviewQueueTerms(loadLib());
     if(q2.length){
-      session = {queue: q2.slice(), total: q2.length, done: 0,
+      const qu = Array.from(new Set(q2));
+      session = {queue: qu.slice(), total: qu.length, done: 0,
         stats: {again:0, hard:0, good:0, easy:0}, current: null, showing: false, requeued: {}};
       nextCard();
     }else{
@@ -1121,6 +1308,8 @@ document.addEventListener("click", e => {
       groups.forEach(g => {
         const c = ensureCard(lib, g.text);
         c.detail = Object.assign({}, c.detail || {});
+        const capZh = (captureState.trans || {})[g.text];
+        if(capZh && !c.detail.zh) c.detail.zh = capZh;
         c.detail.contextWords = terms.slice();
         c.detail.contextSentence = "";
         c.detail.source = src;
@@ -1139,7 +1328,7 @@ document.addEventListener("click", e => {
             const cw = (card.detail && card.detail.contextWords) || null;
             const srcv = (card.detail && card.detail.source) || "";
             let d = findLocal(term) || card.detail;
-            if(!findLocal(term) && (!d || !d.meaning)){
+            if(!findLocal(term) && (!d || !d.meaning || (d.v || 0) < 2)){
               const on = await fetchOnline(term);
               if(on) d = on;
             }
@@ -1185,8 +1374,15 @@ document.querySelectorAll("#moreMenu button").forEach(b =>
   b.addEventListener("click", ()=>{ document.getElementById("moreMenu").classList.add("hidden"); switchTab(b.dataset.menu); }));
 document.getElementById("searchBtn").addEventListener("click", ()=> search());
 document.getElementById("q").addEventListener("keydown", e => { if(e.key === "Enter") search(); });
+document.getElementById("q").addEventListener("input", e => { e.target.classList.remove("searched"); });
 document.getElementById("micBtn").addEventListener("click", startVoice);
-document.getElementById("photoBtn").addEventListener("click", ()=> document.getElementById("photoInput").click());
+document.getElementById("photoBtn").addEventListener("click", ()=>{
+  const img = document.getElementById("cropImg");
+  if(img && img.naturalWidth){
+    document.getElementById("ocrPanel").classList.remove("hidden");
+    layoutCropBox(); scrollToEl(document.getElementById("ocrPanel"));
+  }else document.getElementById("photoInput").click();
+});
 document.getElementById("photoInput").addEventListener("change", e => {
   const f = e.target.files && e.target.files[0]; if(!f) return;
   const url = URL.createObjectURL(f);
@@ -1236,6 +1432,7 @@ document.getElementById("exportBtn").addEventListener("click", ()=>{
     asEl.addEventListener("change", ()=>{ try{ localStorage.setItem("wordnest_autospeak", asEl.checked ? "1" : "0"); }catch(e){} }); }
   initCropDrag();
   refreshAll();
+  renderHistory();
 })();
 </script>
 </body>
