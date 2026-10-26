@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#18202a">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.webmanifest">
-<title>WordNest V3.1 — English Learning</title>
+<title>WordNest V3.2 — English Learning</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#f6f7fb;color:#18202a;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",Arial,sans-serif}
@@ -97,7 +97,7 @@ textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 1
 <body>
 <div class="app">
 <header>
-<h1>🌱 WordNest <span style="font-size:15px;color:#7c3aed">V3.1</span></h1>
+<h1>🌱 WordNest <span style="font-size:15px;color:#7c3aed">V3.2</span></h1>
 <div class="sub">查单词 → 理解 → 建立词汇关系 → 间隔复习</div>
 </header>
 
@@ -153,6 +153,7 @@ textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 1
 <section id="libraryTab" class="hidden">
 <div class="card">
 <div style="display:flex;align-items:center;justify-content:space-between"><h2 style="margin:0">我的词库</h2><button class="secondary" data-action="goto-search">收起 ▲</button></div>
+<div class="field"><input id="libFilter" placeholder="🔎 在词库里找词…"></div>
 <div id="libraryList"></div>
 </div>
 </section>
@@ -306,9 +307,16 @@ function learningTerms(lib){
 function reviewQueueTerms(lib){
   return dueTerms(lib).concat(learningTerms(lib));
 }
+function cardReviewable(c){
+  if(!c) return false;
+  const d = c.detail || {};
+  if(d.meaning || d.zh) return true;
+  /* cards already in the SRS cycle (incl. migrated ones) keep working */
+  return (c.reps || 0) > 0 || c.state === "review" || c.state === "learning";
+}
 function dueTerms(lib, now){
   now = now || Date.now();
-  return Object.keys(lib).filter(k => !lib[k].due || lib[k].due <= now)
+  return Object.keys(lib).filter(k => cardReviewable(lib[k]) && (!lib[k].due || lib[k].due <= now))
     .sort((a,b) => (lib[a].due||0) - (lib[b].due||0));
 }
 function norm(s){ return String(s||"").trim().toLowerCase().replace(/\s+/g," "); }
@@ -766,11 +774,21 @@ function drawGraph(g, term, family, glossMap){
 
 /* ================= Anki-style flashcard session ================= */
 let session = null; /* {queue:[], total:0, done:0, stats:{again,hard,good,easy}, current:null, showing:false} */
+let undoState = null; /* {term, prev, grade, sessionRef, statsBefore, doneBefore, totalBefore} */
+function capNewCards(queue, lib){
+  const fresh = [], rest = [];
+  queue.forEach(t => {
+    const c = lib[t] || {};
+    if((c.state || "new") === "new" && !(c.reps || 0)) fresh.push(t); else rest.push(t);
+  });
+  return rest.concat(fresh.slice(0, 20));
+}
 function startReview(onlyTerm){
   const lib = loadLib();
+  undoState = null;
   let queue;
   if(onlyTerm){ queue = [onlyTerm]; }
-  else{ queue = Array.from(new Set(reviewQueueTerms(lib))); }
+  else{ queue = capNewCards(Array.from(new Set(reviewQueueTerms(lib))), lib); }
   if(!queue.length){
     switchTab("review");
     document.getElementById("session").innerHTML =
@@ -787,15 +805,17 @@ function nextCard(){
   if(!session || !session.queue.length){
     const s = session ? session.stats : {again:0, hard:0, good:0, easy:0};
     const total = session ? session.total : 0;
-    const leftLearn = learningTerms(loadLib()).length;
+    const remain = reviewQueueTerms(loadLib()).length;
     el.innerHTML = '<div class="card fc"><div style="font-size:44px">🎉</div>' +
       '<h2>本轮复习完成</h2>' +
       '<div class="meaning">共复习 ' + total + ' 张 · Again ' + s.again + ' · Hard ' + s.hard +
       ' · Good ' + s.good + ' · Easy ' + s.easy + '</div>' +
-      (leftLearn ? '<div class="meaning" style="margin-top:8px">还有 <b>' + leftLearn +
-        ' 张</b>没记住，约 10 分钟后点下方「继续复习」再练。</div>' : '') +
+      (remain ? '<div class="meaning" style="margin-top:8px">还有 <b>' + remain +
+        ' 张</b>没复习完（含新词和没记住的），点下方「继续复习」接着来。</div>' : '') +
       '<div class="actions"><button data-action="start-review">继续复习</button>' +
-      '<button class="secondary" data-action="goto-search">去查新词</button></div></div>';
+      '<button class="secondary" data-action="goto-search">去查新词</button>' +
+      (undoState && undoState.sessionRef === session ? '<button class="secondary" data-action="undo-grade">↩ 撤销上一张评分</button>' : '') +
+      '</div></div>';
     session = null; refreshAll(); return;
   }
   session.current = session.queue.shift();
@@ -818,7 +838,9 @@ function renderCardFront(){
     (d.phonetic ? '<div class="phonetic">' + escapeHtml(d.phonetic) + '</div>' : '') +
     '<div style="margin-top:12px">' + speakBtn(term, d.audio) + '</div>' +
     '<div class="hint">点发音听一听，想好后点「显示答案」</div></div>' +
-    '<div class="actions"><button data-action="show-answer">显示答案</button></div></div>';
+    '<div class="actions"><button data-action="show-answer">显示答案</button></div>' +
+    (undoState && undoState.sessionRef === session ? '<div class="actions"><button class="secondary" data-action="undo-grade">↩ 撤销上一张评分</button></div>' : '') +
+    '</div>';
   if(autoSpeakOn()){ try{ speak(term, d.audio); }catch(e){} }
 }
 function renderCardBack(){
@@ -863,6 +885,11 @@ function gradeCurrent(grade){
   const term = session.current;
   const lib = loadLib(); const card = ensureCard(lib, term);
   if(!card.detail){ const local = findLocal(term); if(local) card.detail = local; }
+  const prev = {};
+  ["due","intervalDays","ease","reps","lapses","state","correct","wrong","lastGrade","lastReview"]
+    .forEach(k => { prev[k] = card[k]; });
+  undoState = {term: term, prev: prev, grade: grade, sessionRef: session,
+    statsBefore: Object.assign({}, session.stats), doneBefore: session.done, totalBefore: session.total};
   applyGrade(card, grade); saveLib(lib);
   session.stats[grade]++; session.done++;
   /* Again cards are scheduled +10min and stay counted as pending (badge),
@@ -879,7 +906,6 @@ function refreshAll(){
   const total = due + learning;
   const badge = document.getElementById("dueBadge");
   badge.textContent = total; badge.classList.toggle("hidden", total === 0);
-  renderLibrary();
 }
 function fmtDue(card){
   if(!card.due || card.due <= Date.now()) return "已到期";
@@ -888,14 +914,29 @@ function fmtDue(card){
 }
 function renderLibrary(){
   const el = document.getElementById("libraryList"); if(!el) return;
-  const lib = loadLib(); const keys = Object.keys(lib);
-  if(!keys.length){ el.innerHTML = '<div class="empty">还没有词。查询一个词就会自动加入。</div>'; return; }
+  const lib = loadLib(); const allKeys = Object.keys(lib);
+  const fqEl = document.getElementById("libFilter");
+  const q = ((fqEl && fqEl.value) || "").trim().toLowerCase();
+  let head = "";
+  const lastExp = +(localStorage.getItem("wordnest_last_export") || 0);
+  if(allKeys.length >= 50 && Date.now() - lastExp > 30 * DAY){
+    head = '<div class="example" style="background:#fffbeb;margin-bottom:10px">💾 词库已有 ' + allKeys.length +
+      ' 个词，已超过一个月没备份。去「更多 → 设置」页底部点「导出词库 JSON」存一份，换手机或清缓存时不怕丢。</div>';
+  }
+  if(!allKeys.length){ el.innerHTML = head + '<div class="empty">还没有词。查询一个词就会自动加入。</div>'; return; }
+  let keys = allKeys;
+  if(q) keys = keys.filter(k => k.toLowerCase().includes(q) ||
+    (((lib[k].detail || {}).zh || "").toLowerCase().includes(q)));
+  if(q) head += '<div class="small" style="margin:6px 0">找到 ' + keys.length + ' 个</div>';
+  if(!keys.length){ el.innerHTML = head + '<div class="empty">没有匹配的词。</div>'; return; }
   keys.sort((a,b) => (lib[a].due||0) - (lib[b].due||0));
-  el.innerHTML = keys.map(k => {
+  el.innerHTML = head + keys.map(k => {
     const c = lib[k];
     return '<div class="item"><div><b>' + escapeHtml(k) + '</b>' +
       '<div class="small">' + fmtDue(c) + ' · 间隔 ' + fmtInterval(c.intervalDays||0) +
-      ' · 复习 ' + (c.reps||0) + ' 次 · 查询 ' + (c.lookups||0) + ' 次</div></div>' +
+      ' · 复习 ' + (c.reps||0) + ' 次 · 查询 ' + (c.lookups||0) + ' 次</div>' +
+      (cardReviewable(c) ? '' : '<div class="small" style="color:#b45309">暂无释义 · 不进复习，点「看」重试</div>') +
+      '</div>' +
       '<div style="display:flex;gap:6px">' +
       '<button class="secondary" data-action="speak" data-text="' + escapeHtml(k) + '">🔊</button>' +
       '<button class="secondary" data-action="lookup" data-term="' + escapeHtml(k) + '">看</button>' +
@@ -1169,6 +1210,7 @@ function renderCapture(){
   st.container.innerHTML =
     '<div class="captext">' + linesHtml + '</div>' +
     '<div class="small" style="margin-top:8px">已选 ' + selCount + ' 词 → ' + groups.length + ' 张卡（分开点取 = 各自一张卡；同行连选 = 一张短语卡）</div>' +
+    '<div style="margin-top:8px"><button class="secondary" data-action="cap-lookup-all">🔍 直接查这整段（当作一个词条）</button></div>' +
     '<div class="field"><label>来源（可选）</label><input id="capSource" placeholder="如：马太福音 5章" value="' + escapeHtml(st.source || "") + '"></div>' +
     '<div id="capGroups"></div>' +
     '<div class="actions"><button data-action="cap-confirm" ' + (groups.length ? "" : "disabled") + '>🃏 直接做成闪卡（' + groups.length + '）</button></div>';
@@ -1248,9 +1290,11 @@ function switchTab(name){
   if(opX && name !== "search") opX.classList.add("hidden");
   if(name === "library") renderLibrary();
   if(name === "review" && !session){
-    const q2 = reviewQueueTerms(loadLib());
+    const libR = loadLib();
+    const q2 = reviewQueueTerms(libR);
     if(q2.length){
-      const qu = Array.from(new Set(q2));
+      const qu = capNewCards(Array.from(new Set(q2)), libR);
+      undoState = null;
       session = {queue: qu.slice(), total: qu.length, done: 0,
         stats: {again:0, hard:0, good:0, easy:0}, current: null, showing: false, requeued: {}};
       nextCard();
@@ -1269,13 +1313,33 @@ document.addEventListener("click", e => {
   else if(a === "start-review-one") startReview(term);
   else if(a === "show-answer"){ if(session){ session.showing = true; renderCardBack(); } }
   else if(a === "grade") gradeCurrent(el.dataset.grade);
+  else if(a === "undo-grade"){
+    const u = undoState;
+    if(u){
+      const libU = loadLib(); const cU = ensureCard(libU, u.term);
+      Object.assign(cU, u.prev); saveLib(libU);
+      undoState = null;
+      if(session && u.sessionRef === session){
+        if(session.current) session.queue.unshift(session.current);
+        session.current = u.term; session.showing = false;
+        session.done = u.doneBefore; session.stats = u.statsBefore; session.total = u.totalBefore;
+        renderCardFront();
+      }else{
+        session = {queue: [], total: u.totalBefore, done: u.doneBefore,
+          stats: u.statsBefore, current: u.term, showing: false, requeued: {}};
+        switchTab("review");
+        renderCardFront();
+      }
+      refreshAll(); toast("已撤销上一张评分");
+    }
+  }
   else if(a === "goto-search") switchTab("search");
   else if(a === "lookup-term"){
     const t = el.dataset.term;
     if(t){ document.getElementById("q").value = t; switchTab("search"); search(t); }
   }
   else if(a === "remove"){
-    const lib = loadLib(); delete lib[term]; saveLib(lib); refreshAll(); toast("已删除");
+    const lib = loadLib(); delete lib[term]; saveLib(lib); refreshAll(); renderLibrary(); toast("已删除");
   }
   else if(a === "ai-deep"){
     el.disabled = true; el.textContent = "✨ AI 查询中…";
@@ -1286,6 +1350,13 @@ document.addEventListener("click", e => {
         renderResult(term, d); refreshAll(); toast("AI 资料已生成并存入词库");
       }
     }).catch(err => toast(String(err.message||err))).finally(()=> { el.disabled = false; });
+  }
+  else if(a === "cap-lookup-all"){
+    if(captureState){
+      const phrase = captureState.tokens.map(t => cleanTerm(t.raw)).filter(Boolean).join(" ");
+      closeCaptureTask();
+      if(phrase){ switchTab("search"); search(phrase); }
+    }
   }
   else if(a === "cap-tok"){
     const i = +el.dataset.i;
@@ -1415,10 +1486,12 @@ document.getElementById("aiSaveBtn").addEventListener("click", ()=>{
   localStorage.setItem("wordnest_ai_settings", JSON.stringify(s));
   toast("AI 设置已保存在本机");
 });
+document.getElementById("libFilter").addEventListener("input", renderLibrary);
 document.getElementById("exportBtn").addEventListener("click", ()=>{
   const blob = new Blob([JSON.stringify(loadLib(), null, 1)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob); a.download = "wordnest-library.json"; a.click();
+  try{ localStorage.setItem("wordnest_last_export", String(Date.now())); }catch(e){}
 });
 (function init(){
   const s = aiSettings();
