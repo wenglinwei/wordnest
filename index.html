@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#18202a">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.webmanifest">
-<title>WordNest V3.2 — English Learning</title>
+<title>WordNest V3.3 — English Learning</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#f6f7fb;color:#18202a;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",Arial,sans-serif}
@@ -71,7 +71,7 @@ footer{text-align:center;color:#9ca3af;font-size:12px;margin-top:25px;line-heigh
 .cropbox{position:absolute;border:2.5px solid #22c55e;box-shadow:0 0 0 9999px rgba(0,0,0,.45);border-radius:6px;cursor:move;touch-action:none}
 .crophandle{position:absolute;right:-14px;bottom:-14px;width:28px;height:28px;border-radius:50%;background:#22c55e;color:#fff;font-size:16px;line-height:28px;text-align:center;cursor:nwse-resize;touch-action:none}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.chip{background:#eef1f5;border-radius:999px;padding:8px 12px;font-size:15px;font-weight:700;cursor:pointer}
+.chip{background:#eef1f5;color:#6b7280;border-radius:999px;padding:8px 12px;font-size:15px;font-weight:700;cursor:pointer}
 .field{margin:12px 0}
 .field label{display:block;font-size:13px;color:#6b7280;margin-bottom:6px;font-weight:700}
 .field input{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 12px;font-size:16px;background:#fff}
@@ -97,7 +97,7 @@ textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 1
 <body>
 <div class="app">
 <header>
-<h1>🌱 WordNest <span style="font-size:15px;color:#7c3aed">V3.2</span></h1>
+<h1>🌱 WordNest <span style="font-size:15px;color:#7c3aed">V3.3</span></h1>
 <div class="sub">查单词 → 理解 → 建立词汇关系 → 间隔复习</div>
 </header>
 
@@ -433,7 +433,9 @@ async function fetchDictEntry(word){
           });
         });
         if(!best) return null;
-        const e = best.entry, m0 = best.meaning, d0 = (m0.definitions || [])[0] || {};
+        const e = best.entry, m0 = best.meaning;
+        const defs = m0.definitions || [];
+        const d0 = defs.find(x => x.example) || defs[0] || {};
         const ph = e.phonetics || [];
         let phonetic = ((ph.find(p => p.text && p.audio) || ph.find(p => p.text) || {}).text) || e.phonetic || "";
         if(!phonetic){
@@ -443,7 +445,8 @@ async function fetchDictEntry(word){
             if(f){ phonetic = f.text; break; }
           }
         }
-        return {pos: m0.partOfSpeech || "", meaning: d0.definition || "",
+        phonetic = sanitizePhonetic(phonetic);
+        return {pos: m0.partOfSpeech || "", meaning: d0.definition || "", 
           example: d0.example || "", phonetic: phonetic,
           audio: audio, synonyms: Array.from(syns), senses: senses};
       }
@@ -459,15 +462,34 @@ async function datamuseWords(query){
     return (j||[]).map(x => x.word).filter(Boolean);
   }catch(e){ return []; }
 }
+async function dictHasWord(word){
+  try{
+    const r = await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(word));
+    return !!r.ok;
+  }catch(e){ return false; }
+}
 async function fetchFamily(term, lemma, dictSynonyms){
   const jobs = [datamuseWords("sl=" + encodeURIComponent(term) + "&max=6")];
   const variants = spellingVariants(term).slice(0, 12);
   variants.forEach(v => jobs.push(datamuseWords("sp=" + encodeURIComponent(v) + "&max=1")));
   const results = await Promise.all(jobs);
-  const soundLike = results[0] || [];
+  const slRaw = (results[0] || []).slice(0, 5);
+  const slOk = await Promise.all(slRaw.map(x => dictHasWord(String(x).toLowerCase())));
+  const soundLike = slRaw.filter((x, i) => slOk[i]);
   const spelling = [];
   variants.forEach((v, i) => { if((results[i+1]||[]).some(w => w.toLowerCase() === v)) spelling.push(v); });
   return mergeFamily([[lemma && lemma !== term ? lemma : ""], dictSynonyms || [], soundLike, spelling], term, 8);
+}
+function cleanTranslation(t){
+  if(!t) return "";
+  const s = String(t);
+  if(/MYMEMORY WARNING|AVAILABLE FREE TRANSLATIONS|QUERY LENGTH LIMIT|INVALID EMAIL/i.test(s)) return "";
+  return s.replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").trim();
+}
+function sanitizePhonetic(p){
+  /* the IPA stress marks ˈ/ˌ render flipped or broken in some phone fonts */
+  return String(p || "").replace(/ˈ/g, "'").replace(/ˌ/g, ",");
 }
 async function translateText(text, from, to){
   try{
@@ -475,7 +497,7 @@ async function translateText(text, from, to){
       "&langpair=" + encodeURIComponent(from) + "|" + encodeURIComponent(to));
     if(!r.ok) return "";
     const j = await r.json();
-    const t = j && j.responseData && j.responseData.translatedText || "";
+    const t = cleanTranslation(j && j.responseData && j.responseData.translatedText || "");
     return t && t.toLowerCase() !== String(text).toLowerCase() ? t : "";
   }catch(e){ return ""; }
 }
@@ -495,14 +517,14 @@ async function translateWord(term, pos){
       const j = await r.json();
       const cands = [];
       (j.matches || []).forEach(m => {
-        if(m && m.translation && hasCJK(m.translation) &&
-            String(m.translation).toLowerCase() !== q.toLowerCase())
-          cands.push({t: m.translation, q: parseFloat(m.quality) || 0, m: parseFloat(m.match) || 0});
+        const mt = cleanTranslation(m && m.translation || "");
+        if(mt && hasCJK(mt) && mt.toLowerCase() !== q.toLowerCase())
+          cands.push({t: mt, q: parseFloat(m.quality) || 0, m: parseFloat(m.match) || 0});
       });
       cands.sort((a, b) => (b.q - a.q) || (b.m - a.m));
       const good = cands.find(c => c.q >= 50);
       if(good) return good.t;
-      const rd = (j.responseData && j.responseData.translatedText) || "";
+      const rd = cleanTranslation((j.responseData && j.responseData.translatedText) || "");
       if(rd && hasCJK(rd) && rd.toLowerCase() !== q.toLowerCase()) return rd;
       if(cands.length) return cands[0].t;
     }catch(e){ /* try next phrasing */ }
@@ -585,11 +607,16 @@ function speakBtn(text, audio){
   return '<button class="speakbtn" data-action="speak" data-text="' + escapeHtml(text) +
     '" data-audio="' + escapeHtml(audio||"") + '" title="发音">🔊</button>';
 }
+function glossedFamily(d){
+  const g = (d && d.familyGloss) || {};
+  return ((d && d.family) || []).filter(x => g[x]);
+}
 function detailHtml(term, d, gid){
   const gloss = d.familyGloss || {};
-  const fam = (d.family||[]).map(x =>
+  const famWords = glossedFamily(d);
+  const fam = famWords.map(x =>
     '<span class="tag" data-action="lookup" data-term="' + escapeHtml(x) + '">' + escapeHtml(x) +
-    (gloss[x] ? '<span class="gl"> · ' + escapeHtml(gloss[x]) + '</span>' : '') + '</span>').join("");
+    '<span class="gl"> · ' + escapeHtml(gloss[x]) + '</span></span>').join("");
   return '<div class="card">' +
     '<div><span class="word">' + escapeHtml(term) + '</span>' + speakBtn(term, d.audio) +
     (d.phonetic ? '<span class="phonetic">' + escapeHtml(d.phonetic) + '</span>' : '') + '</div>' +
@@ -606,9 +633,9 @@ function detailHtml(term, d, gid){
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>' : '')) +
     (d.example ? '<div class="example">💬 ' + escapeHtml(d.example) +
       ' <button class="speakbtn" data-action="speak" data-text="' + escapeHtml(d.example) + '">🔊 朗读例句</button></div>' : '') +
-    '<h3>🌱 词根 / 构词</h3><div class="meaning">' + escapeHtml(d.root || "暂无") + '</div>' +
-    '<h3>🔗 相关词</h3><div class="tags">' + (fam || '<span class="small">暂无</span>') + '</div>' +
-    '<h3>🕸️ 词汇关系（点节点可查询）</h3><div id="' + gid + '" class="graph"></div>' +
+    (d.root ? '<h3>🌱 词根 / 构词</h3><div class="meaning">' + escapeHtml(d.root) + '</div>' : '') +
+    (famWords.length ? '<h3>🔗 相关词</h3><div class="tags">' + fam + '</div>' +
+    '<h3>🕸️ 词汇关系（点节点可查询）</h3><div id="' + gid + '" class="graph"></div>' : '') +
     '<div class="actions">' +
       '<button data-action="start-review-one" data-term="' + escapeHtml(term) + '">🃏 用闪卡记这个词</button>' +
       '<button class="secondary" data-action="ai-deep" data-term="' + escapeHtml(term) + '">✨ AI 深挖</button>' +
@@ -620,7 +647,7 @@ function renderResult(term, d){
   const el = document.getElementById("result");
   el.dataset.term = term;
   el.innerHTML = detailHtml(term, d, "graphMain");
-  drawGraph(document.getElementById("graphMain"), term, d.family||[], d.familyGloss || {});
+  drawGraph(document.getElementById("graphMain"), term, glossedFamily(d), d.familyGloss || {});
   enrichFamilyGloss(term, d);
 }
 async function glossFor(word){
@@ -645,7 +672,7 @@ async function enrichFamilyGloss(term, d){
   const el = document.getElementById("result");
   if(el && el.dataset.term === term){
     el.innerHTML = detailHtml(term, card.detail, "graphMain");
-    drawGraph(document.getElementById("graphMain"), term, card.detail.family || [], gloss);
+    drawGraph(document.getElementById("graphMain"), term, glossedFamily(card.detail), gloss);
   }
 }
 async function search(termArg){
@@ -672,6 +699,7 @@ async function search(termArg){
   }
   document.getElementById("q").value = term;
   noteSearched(term);
+  document.getElementById("q").value = "";
   switchTab("search");
   const lib = loadLib();
   const card = ensureCard(lib, term);
@@ -724,12 +752,10 @@ function loadHistory(){ try{ return JSON.parse(localStorage.getItem(HIST_KEY) ||
 function noteSearched(term){
   try{
     let h = loadHistory().filter(x => x !== term);
-    h.unshift(term); h = h.slice(0, 24);
+    h.unshift(term); h = h.slice(0, 5);
     localStorage.setItem(HIST_KEY, JSON.stringify(h));
   }catch(e){}
   renderHistory();
-  const q = document.getElementById("q");
-  if(q) q.classList.add("searched");
 }
 function renderHistory(){
   const wrap = document.getElementById("searchHistory");
@@ -865,15 +891,12 @@ function renderCardBack(){
         escapeHtml(s.pos) + ' · ' + escapeHtml(s.def)).join('<br>') + '</div>' : '') +
     (d.example ? '<div class="example">💬 ' + escapeHtml(d.example) +
       ' <button class="speakbtn" data-action="speak" data-text="' + escapeHtml(d.example) + '">🔊</button></div>' : '') +
-    ((d.contextWords && d.contextWords.length) ? '<div class="example" style="background:#fffbeb">📍 同批选词：' +
+    ((d.contextWords && d.contextWords.length && !/\s/.test(term)) ? '<div class="example" style="background:#fffbeb">📍 同批选词：' +
       d.contextWords.map(w => '<span class="tag" data-action="lookup-term" data-term="' + escapeHtml(w) + '">' + escapeHtml(w) + '</span>').join(' ') +
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>'
     : (d.contextSentence ? '<div class="example" style="background:#fffbeb">📖 出处原句：' + escapeHtml(d.contextSentence) +
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>' : '')) +
     (d.root ? '<div class="meaning" style="margin-top:10px">🌱 ' + escapeHtml(d.root) + '</div>' : '') +
-    ((d.family && d.family.length) ? '<div class="tags">' + d.family.map(x =>
-      '<span class="tag" data-action="lookup" data-term="' + escapeHtml(x) + '">' + escapeHtml(x) +
-      ((d.familyGloss || {})[x] ? '<span class="gl"> · ' + escapeHtml(d.familyGloss[x]) + '</span>' : '') + '</span>').join("") + '</div>' : '') +
     '<h3 style="margin-bottom:4px">你记得怎么样？</h3>' +
     '<div class="grades">' +
       gBtn("again","g-again","Again") + gBtn("hard","g-hard","Hard") +
