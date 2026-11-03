@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#18202a">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.webmanifest">
-<title>WordNest V3.3 — English Learning</title>
+<title>WordNest V3.4 — English Learning</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#f6f7fb;color:#18202a;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",Arial,sans-serif}
@@ -92,12 +92,18 @@ footer{text-align:center;color:#9ca3af;font-size:12px;margin-top:25px;line-heigh
 .captext{background:#f7f8fb;border-radius:14px;padding:12px;margin-top:10px}
 mark{background:#fde68a;border-radius:4px;padding:0 3px}
 textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 12px;font-size:16px;font-family:inherit;min-height:84px}
+.dash{background:linear-gradient(135deg,#18202a,#2b3a4d);color:#fff;border-radius:20px;padding:18px;margin:12px 0;box-shadow:0 8px 24px #18202a30}
+.dash .dnum{font-size:46px;font-weight:800;line-height:1.05}
+.dash .drow{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap}
+.dash .dfore{font-size:14px;opacity:.85;padding-bottom:6px}
+.dash .dover{color:#fca5a5;font-weight:700;font-size:13px}
+.dash button{background:#f59e0b;color:#18202a;margin-top:12px;font-size:16px}
 </style>
 </head>
 <body>
 <div class="app">
 <header>
-<h1>🌱 WordNest <span style="font-size:15px;color:#7c3aed">V3.3</span></h1>
+<h1>🌱 WordNest <span style="font-size:15px;color:#7c3aed">V3.4</span></h1>
 <div class="sub">查单词 → 理解 → 建立词汇关系 → 间隔复习</div>
 </header>
 
@@ -143,6 +149,7 @@ textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 1
 </div>
 
 <section id="searchTab">
+<div id="dash"></div>
 <div id="result" class="empty">试试 <b>hello</b>、<b>improve</b>、<b>figure out</b><br><span class="small">支持中文输入，如「承担」；粘贴整段英文可点选生词</span></div>
 </section>
 
@@ -162,6 +169,7 @@ textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 1
 <div class="card">
 <h2>✨ AI</h2>
 <div class="small">填 Key 后，查词不完整时自动用 AI 补全词根、相关词和释义。Key 只存本机。</div>
+<div class="small" style="margin-top:6px">用 DeepSeek：在上方选「DeepSeek」，把你 DeepTutor 里用的同一个 Key 粘进来即可。在 Mac 上复制、iPhone 上粘贴（同一 Apple ID 可跨设备直接粘）。</div>
 <div class="field"><label>服务商</label>
 <select id="aiPreset" style="width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 12px;font-size:16px;background:#fff">
 <option value="">自定义</option>
@@ -268,24 +276,34 @@ function fmtInterval(days){
   return (Math.round(days/365*10)/10) + "年";
 }
 function srsCalc(card, grade){
+  /* Anki-style scheduling. New words and old words live on different
+     clocks: a new/learning card first passes short steps (10min / 12h /
+     1d / 4d); only review cards grow multiplicatively by ease, and an
+     Again on a review card sends it back to relearning (a lapse). */
   const ease0 = card.ease || 2.5;
   const I = card.intervalDays || 0;
+  const st = card.state || "new";
+  const isLearning = st === "new" || st === "learning";
   if(grade === "again"){
-    return {dueMs: Date.now() + 10*60*1000, intervalDays: 0,
-      ease: Math.max(1.3, ease0 - 0.2), label: "10分钟"};
+    return {dueMs: Date.now() + 10*60*1000, intervalDays: 0, state: "learning",
+      ease: isLearning ? ease0 : Math.max(1.3, ease0 - 0.2), label: "10分钟"};
+  }
+  if(isLearning){
+    if(grade === "hard")
+      return {dueMs: Date.now() + 12*3600*1000, intervalDays: 0.5, state: "review",
+        ease: Math.max(1.3, ease0 - 0.15), label: "12小时"};
+    if(grade === "good")
+      return {dueMs: Date.now() + DAY, intervalDays: 1, state: "review",
+        ease: ease0, label: "1天"};
+    return {dueMs: Date.now() + 4*DAY, intervalDays: 4, state: "review",
+      ease: Math.min(2.8, ease0 + 0.15), label: "4天"};
   }
   let days, ease = ease0;
-  if(grade === "hard"){
-    days = I === 0 ? 1 : Math.max(1, I * 1.2);
-    ease = Math.max(1.3, ease0 - 0.15);
-  }else if(grade === "good"){
-    days = I === 0 ? 3 : I * ease0;
-  }else{ /* easy */
-    days = I === 0 ? 7 : I * ease0 * 1.3;
-    ease = Math.min(2.8, ease0 + 0.15);
-  }
-  days = Math.round(days*10)/10;
-  return {dueMs: Date.now() + days*DAY, intervalDays: days, ease: ease, label: fmtInterval(days)};
+  if(grade === "hard"){ days = Math.max(1, I * 1.2); ease = Math.max(1.3, ease0 - 0.15); }
+  else if(grade === "good"){ days = Math.max(1, I * ease0); }
+  else { days = Math.max(1, I * ease0 * 1.3); ease = Math.min(2.8, ease0 + 0.15); }
+  days = Math.min(365, Math.round(days*10)/10);
+  return {dueMs: Date.now() + days*DAY, intervalDays: days, state: "review", ease: ease, label: fmtInterval(days)};
 }
 function applyGrade(card, grade){
   const r = srsCalc(card, grade);
@@ -293,7 +311,7 @@ function applyGrade(card, grade){
   if(grade === "good" || grade === "easy"){ card.correct = (card.correct||0)+1; }
   if(grade === "hard"){ card.wrong = (card.wrong||0)+1; }
   card.due = r.dueMs; card.intervalDays = r.intervalDays; card.ease = r.ease;
-  card.reps = (card.reps||0)+1; card.state = grade === "again" ? "learning" : "review";
+  card.reps = (card.reps||0)+1; card.state = r.state || (grade === "again" ? "learning" : "review");
   card.lastGrade = grade; card.lastReview = Date.now();
   return r;
 }
@@ -305,7 +323,46 @@ function learningTerms(lib){
     .sort((a,b) => (lib[a].due||0) - (lib[b].due||0));
 }
 function reviewQueueTerms(lib){
-  return dueTerms(lib).concat(learningTerms(lib));
+  const due = dueTerms(lib);
+  const st = t => (lib[t].state || "new");
+  const review = due.filter(t => st(t) === "review");
+  const learning = due.filter(t => st(t) === "learning").concat(learningTerms(lib));
+  const fresh = due.filter(t => st(t) === "new");
+  return review.concat(learning, fresh);
+}
+function forecastCounts(lib){
+  /* Due counts for today / tomorrow / day after, by local calendar day.
+     Anything overdue rolls into today's pile (it never disappears). */
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const out = {today: 0, tomorrow: 0, day2: 0, overdue: 0};
+  Object.keys(lib).forEach(t => {
+    const c = lib[t];
+    if(!cardReviewable(c)) return;
+    const due = c.due || 0;
+    const idx = Math.floor((due - startToday) / DAY);
+    if(idx <= 0){ out.today++; if(due < startToday && (c.reps || 0) > 0) out.overdue++; }
+    else if(idx === 1) out.tomorrow++;
+    else if(idx === 2) out.day2++;
+  });
+  return out;
+}
+function renderDashboard(){
+  const el = document.getElementById("dash"); if(!el) return;
+  const f = forecastCounts(loadLib());
+  if(!f.today && !f.tomorrow && !f.day2){
+    el.innerHTML = '<div class="dash"><div style="font-size:19px;font-weight:800">🃏 今日复习</div>' +
+      '<div class="dfore" style="margin-top:6px">近三天没有到期的卡片 🎉 查些新词进来吧。</div></div>';
+    return;
+  }
+  el.innerHTML = '<div class="dash">' +
+    (f.overdue ? '<div class="dover">⚠️ 有 ' + f.overdue + ' 张已逾期——没背的不会消失，会顺延累积到今天</div>' : '') +
+    '<div class="drow"><div><div style="font-size:13px;opacity:.8">🃏 今日待复习</div>' +
+    '<div class="dnum">' + f.today + '<span style="font-size:18px"> 张</span></div></div>' +
+    '<div class="dfore">明天 ' + f.tomorrow + ' 张 · 后天 ' + f.day2 + ' 张</div></div>' +
+    (f.today ? '<button data-action="start-review">▶ 开始今日复习</button>'
+             : '<div class="dfore" style="margin-top:8px">今天没有要背的，明天的先放着。</div>') +
+    '</div>';
 }
 function cardReviewable(c){
   if(!c) return false;
@@ -339,6 +396,7 @@ function speak(text, audioUrl){
     try{
       if(currentAudio){ currentAudio.pause(); }
       currentAudio = new Audio(audioUrl);
+      currentAudio.onerror = ()=> speakTTS(text);
       currentAudio.play().catch(()=> speakTTS(text));
       return;
     }catch(e){ /* fall through */ }
@@ -348,12 +406,31 @@ function speak(text, audioUrl){
 function autoSpeakOn(){ try{ return localStorage.getItem("wordnest_autospeak") !== "0"; }catch(e){ return true; } }
 function speakTTS(text){
   if(!("speechSynthesis" in window)){ toast("这个浏览器不支持语音朗读"); return; }
+  try{ speechSynthesis.resume(); }catch(e){} /* iOS leaves it paused sometimes */
   speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = "en-US"; u.rate = 0.92;
-  const v = speechSynthesis.getVoices().filter(x => /^en[-_]/i.test(x.lang));
-  if(v.length) u.voice = v[0];
-  speechSynthesis.speak(u);
+  const make = () => {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "en-US"; u.rate = 0.92;
+    const v = speechSynthesis.getVoices().filter(x => /^en[-_]/i.test(x.lang));
+    if(v.length) u.voice = v[0];
+    return u;
+  };
+  const doSpeak = () => {
+    speechSynthesis.speak(make());
+    /* iOS occasionally drops an utterance silently — if nothing is
+       speaking shortly after, submit it once more. */
+    setTimeout(()=>{ try{
+      if(!speechSynthesis.speaking && !speechSynthesis.pending){
+        speechSynthesis.resume(); speechSynthesis.speak(make());
+      } }catch(e){} }, 700);
+  };
+  if(speechSynthesis.getVoices().length) doSpeak();
+  else{
+    let done = false;
+    const h = ()=>{ if(done) return; done = true; doSpeak(); };
+    try{ speechSynthesis.addEventListener("voiceschanged", h, {once: true}); }catch(e){}
+    setTimeout(h, 350);
+  }
 }
 if("speechSynthesis" in window){ speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = ()=> speechSynthesis.getVoices(); }
 
@@ -392,8 +469,12 @@ function lemmaCandidates(term){
   if(map[term]) return [map[term]];
   const out = [];
   if(/ies$/.test(term)) out.push(term.slice(0,-3) + "y");
-  if(/[^aeiou]ing$/.test(term)){ const b = term.slice(0,-3); out.push(b, b + "e", b + b[b.length-1]); }
-  if(/ed$/.test(term)){ const b = term.slice(0,-2); out.push(b, b + "e", term.slice(0,-1)); }
+  if(/[^aeiou]ing$/.test(term)){ const b = term.slice(0,-3); out.push(b);
+    if(/(.)\1$/.test(b)) out.push(b.slice(0,-1)); /* running -> run */
+    out.push(b + "e"); }
+  if(/ed$/.test(term)){ const b = term.slice(0,-2); out.push(b);
+    if(/(.)\1$/.test(b)) out.push(b.slice(0,-1)); /* sapped -> sap, stopped -> stop */
+    out.push(b + "e", term.slice(0,-1)); }
   if(/es$/.test(term)) out.push(term.slice(0,-2));
   if(/s$/.test(term) && term.length > 3) out.push(term.slice(0,-1));
   return Array.from(new Set(out.filter(x => x && x !== term)));
@@ -406,7 +487,66 @@ function simpleRootNote(term, lemma){
   for(const [p, note] of pre){ if(term.startsWith(p) && term.length > p.length + 2) return "前缀 " + p + "-：" + note + "。"; }
   return "";
 }
+/* Etymology: the user wants to always see where a word comes from.
+   Layers: a small built-in origin table for words he actually meets,
+   then morpheme composition (prefix + root + suffix with meanings),
+   then the older affix note as a last resort. AI fills the rest. */
+const ETYM = {
+  abhor:"源自拉丁语 abhorrēre：ab-（离开、远离）＋ horrēre（战栗、毛发倒竖）——吓得往后缩开，引申为极度厌恶、憎恨。",
+  scorn:"源自古法语 escarn（嘲笑、蔑视），本义是公开的轻蔑与嘲弄。",
+  treacherous:"treachery（背叛）＋ -ous（形容词后缀）：treachery 来自古法语 tricherie（欺骗、耍诈）。",
+  traitorous:"traitor（叛徒）＋ -ous（形容词后缀）：traitor 来自拉丁语 trāditor（出卖者），源于 trādere（交出、背叛）。",
+  bridle:"源自古英语 brīdel（缰绳、马勒），与 braid（编结）同源——用编成的绳带控制马。",
+  thwart:"源自古诺斯语 þvert（横向的、斜着穿过的）——横着挡住去路，引申为阻挠、挫败。",
+  himmel:"德语词 Himmel，意思是「天空；天堂」，不是英语词——多半出现在人名、书名或引文里。",
+  sap:"源自古英语 sæp（树液、汁液）：吸干汁液，引申为逐渐削弱、耗尽。",
+  recast:"re-（再次）＋ cast（铸造、抛掷）：重新铸造，引申为重塑、改写。"
+};
+const MORPH_PRE = [["anti","反对、对抗"],["auto","自己、自动"],["bene","好、善"],["circum","环绕一周"],["contra","反对、相反"],["counter","反、逆"],["dys","坏的、困难的"],["extra","超出、在外"],["hyper","过度、超"],["hypo","不足、低于"],["inter","在……之间"],["intra","在……内部"],["macro","大"],["micro","微小"],["mono","单一"],["multi","许多"],["non","非、不"],["omni","全部"],["over","过度；越过"],["poly","许多"],["post","在……之后"],["pro","向前；赞成"],["retro","向后、回溯"],["semi","半"],["sub","在……之下"],["super","超、过度"],["syn","共同、一起"],["sym","共同、一起"],["tele","远"],["trans","跨越、转移"],["tri","三"],["ultra","极端、超"],["under","在……之下；不足"],["uni","一、单一"],["ab","离开、远离"],["ad","向、朝着"],["de","向下；去掉；加强"],["dis","否定；分开"],["ex","向外；前任"],["im","不（否定）"],["in","不；向内"],["pre","在……之前"],["re","再次；向后"],["un","否定：不、未"]];
+const MORPH_ROOT = [["horr","战栗、毛发竖立"],["dict","说"],["port","搬运、携带"],["scrib","写"],["script","写"],["spect","看"],["tract","拉、拖"],["ject","抛、投"],["miss","送、派"],["mit","送、派"],["duct","引导、带领"],["duc","引导、带领"],["fact","做、制作"],["fac","做、制作"],["cept","抓取、接受"],["cap","抓、握"],["tens","伸展"],["tend","伸展"],["cred","相信"],["aud","听"],["vid","看"],["vis","看"],["voc","声音、喊叫"],["chron","时间"],["geo","土地"],["bio","生命"],["path","感受、痛苦"],["phon","声音"],["graph","书写、描画"],["scop","观察"],["mort","死"],["viv","活"],["vit","生命"],["sens","感觉"],["sent","感觉"],["stit","站立"],["sta","站立"],["mot","移动"],["mov","移动"],["press","压、挤"],["rupt","破裂、断开"],["vers","转"],["vert","转"],["pos","放、置"],["pon","放、置"],["struct","建造"],["gress","行走"],["grad","步、级"],["cess","走、让"],["ced","走、让"],["curs","跑、流"],["cur","跑、流"],["flu","流动"],["gen","出生、产生"],["luc","光"],["lum","光"],["magn","大"],["min","小"],["nov","新"],["pac","和平"],["ped","脚"],["puls","推、击"],["pel","推、驱赶"],["pens","悬挂；思考"],["pend","悬挂"],["phil","爱"],["phob","恐惧"],["psych","心灵"],["terr","土地"],["vac","空"],["verb","词、言语"],["volv","滚动、卷"],["vor","吞食"],["anthropo","人类"],["demo","人民"],["theo","神"],["morph","形态"],["photo","光"],["hydr","水"],["astro","星星"],["biblio","书"],["carn","肉"],["cent","一百"],["lingu","语言、舌头"],["manu","手"],["mar","大海"],["pater","父亲"],["mater","母亲"],["prim","第一"],["reg","统治；国王"],["san","健康"],["sci","知道"],["son","声音"],["urb","城市"],["vent","来"],["ven","来"],["jud","判断"],["jur","法律、誓言"],["leg","法律"],["loc","地方"],["mem","记忆"],["ment","心智"],["pet","追求、请求"],["popul","人民"],["quer","询问"],["quest","询问"],["rect","正直、纠正"],["rid","笑"],["rog","请求、提问"],["sequ","跟随"],["serv","保存；服务"],["sign","标记"],["simil","相似"],["soci","伙伴"],["spir","呼吸"],["tact","接触"],["tang","接触"],["tect","覆盖"],["tempor","时间"],["termin","界限、终点"],["test","见证"],["tim","恐惧"],["tort","扭曲"],["trib","给予"],["turb","扰乱"],["und","波浪"],["val","有力、价值"],["veh","运载"],["via","道路"],["vinc","征服"],["vict","征服"],["vig","警醒"],["vir","男人"],["virt","美德"],["vot","誓言"],["sap","汁液；品尝、明辨"],["sol","单独；太阳"],["log","言辞、学问"],["nom","名字；法则"]];
+const MORPH_SUF = [["tion","名词后缀：行为、过程或状态"],["sion","名词后缀：行为、过程或状态"],["ness","名词后缀：……的性质、状态"],["ment","名词后缀：行为或其结果"],["ity","名词后缀：性质、状态"],["ance","名词后缀：状态、性质"],["ence","名词后缀：状态、性质"],["dom","名词后缀：领域、状态"],["ship","名词后缀：身份、状态"],["hood","名词后缀：时期、状态"],["ism","名词后缀：主义、学说"],["ist","名词后缀：从事……的人"],["able","形容词后缀：能够……的"],["ible","形容词后缀：能够……的"],["ful","形容词后缀：充满……的"],["less","形容词后缀：没有……的"],["ious","形容词后缀：具有……性质的"],["ous","形容词后缀：具有……性质的"],["ive","形容词后缀：有……倾向的"],["ic","形容词后缀：与……有关的"],["al","形容词后缀：与……有关的"],["ly","副词后缀：以……方式地"],["ize","动词后缀：使成为……"],["ify","动词后缀：使……化"],["ate","动词/形容词后缀"],["er","名词后缀：做……的人/物"],["or","名词后缀：做……的人/物"],["ty","名词后缀：性质、状态"],["y","形容词后缀：多……的"]];
+function morphExplain(w){
+  let stem = w, sufNote = "";
+  for(const [p, note] of MORPH_SUF){ if(w.endsWith(p) && w.length > p.length + 2){ stem = w.slice(0, -p.length); sufNote = note; break; } }
+  let preTxt = "", rest = stem;
+  for(const [p, note] of MORPH_PRE){ if(stem.startsWith(p) && stem.length > p.length + 2){ preTxt = "前缀 " + p + "-：" + note; rest = stem.slice(p.length); break; } }
+  let rootTxt = "";
+  for(const [r, note] of MORPH_ROOT){ if(rest.indexOf(r) >= 0){ rootTxt = "词根 -" + r + "-：" + note; break; } }
+  const parts = [];
+  if(preTxt) parts.push(preTxt);
+  if(rootTxt) parts.push(rootTxt);
+  if(sufNote) parts.push(sufNote);
+  if(rootTxt || (preTxt && sufNote)) return parts.join(" ＋ ") + " —— 这个词就是这样拼合出来的。";
+  return "";
+}
+function etymologyFor(term, lemma){
+  term = String(term || "").toLowerCase();
+  if(/\s/.test(term)) return simpleRootNote(term, lemma);
+  if(ETYM[term]) return ETYM[term];
+  if(lemma && lemma !== term){
+    const base = ETYM[lemma] || morphExplain(lemma);
+    return term + " 是 " + lemma + " 的变形（先掌握原形）。" + (base || "");
+  }
+  return morphExplain(term) || simpleRootNote(term, lemma);
+}
 /* == RELATED CORE END == */
+function simplifyDefText(t){
+  /* Long dictionary definitions chain clauses with "; " — the first clause
+     alone is usually the clear, learnable meaning ("abhor" -> "To regard
+     with horror or detestation"). Keep only it when the full text is long. */
+  const s = String(t || "").trim();
+  if(s.length > 100 && s.indexOf(";") > 0) return s.slice(0, s.indexOf(";")).trim();
+  return s;
+}
+function pickSimpleDef(defs){
+  if(!defs || !defs.length) return {};
+  const withEx = defs.filter(x => x.example);
+  const pool = withEx.length ? withEx : defs;
+  const short = pool.filter(x => (x.definition || "").length <= 110);
+  const sorted = (short.length ? short : pool).slice()
+    .sort((a, b) => (a.definition || "").length - (b.definition || "").length);
+  return sorted[0] || defs[0];
+}
 async function fetchDictEntry(word){
   for(let attempt = 0; attempt < 2; attempt++){
     try{
@@ -434,8 +574,17 @@ async function fetchDictEntry(word){
         });
         if(!best) return null;
         const e = best.entry, m0 = best.meaning;
-        const defs = m0.definitions || [];
-        const d0 = defs.find(x => x.example) || defs[0] || {};
+        /* Drop "echo" definitions that just repeat the word itself
+           (the free dictionary has entries like sapped -> "sapped").
+           If nothing real remains, return null so lemma fallback runs. */
+        const wLow = String(word || "").toLowerCase();
+        const defs = (m0.definitions || []).filter(x => {
+          const t = String((x && x.definition) || "").toLowerCase()
+            .replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+          return t && t !== wLow;
+        });
+        if(!defs.length) return null;
+        const d0 = pickSimpleDef(defs);
         const ph = e.phonetics || [];
         let phonetic = ((ph.find(p => p.text && p.audio) || ph.find(p => p.text) || {}).text) || e.phonetic || "";
         if(!phonetic){
@@ -446,7 +595,7 @@ async function fetchDictEntry(word){
           }
         }
         phonetic = sanitizePhonetic(phonetic);
-        return {pos: m0.partOfSpeech || "", meaning: d0.definition || "", 
+        return {pos: m0.partOfSpeech || "", meaning: simplifyDefText(d0.definition || ""), 
           example: d0.example || "", phonetic: phonetic,
           audio: audio, synonyms: Array.from(syns), senses: senses};
       }
@@ -480,18 +629,47 @@ async function fetchFamily(term, lemma, dictSynonyms){
   variants.forEach((v, i) => { if((results[i+1]||[]).some(w => w.toLowerCase() === v)) spelling.push(v); });
   return mergeFamily([[lemma && lemma !== term ? lemma : ""], dictSynonyms || [], soundLike, spelling], term, 8);
 }
+const TRAD_MAP = {"們":"们","個":"个","這":"这","為":"为","麼":"么","麽":"么","頭":"头","轡":"辔","馬":"马","車":"车","門":"门","開":"开","關":"关","時":"时","間":"间","會":"会","國":"国","學":"学","語":"语","說":"说","話":"话","認":"认","識":"识","讓":"让","過":"过","進":"进","還":"还","來":"来","長":"长","發":"发","現":"现","對":"对","應":"应","變":"变","點":"点","線":"线","電":"电","風":"风","雲":"云","愛":"爱","樂":"乐","聽":"听","寫":"写","讀":"读","買":"买","賣":"卖","錢":"钱","貴":"贵","輕":"轻","遠":"远","邊":"边","裡":"里","後":"后","從":"从","誰":"谁","麼":"么"};
+const TRAD_RE = new RegExp("[" + Object.keys(TRAD_MAP).join("") + "]", "g");
+function toSimplified(s){ return String(s || "").replace(TRAD_RE, ch => TRAD_MAP[ch] || ch); }
 function cleanTranslation(t){
   if(!t) return "";
-  const s = String(t);
+  let s = String(t);
   if(/MYMEMORY WARNING|AVAILABLE FREE TRANSLATIONS|QUERY LENGTH LIMIT|INVALID EMAIL/i.test(s)) return "";
-  return s.replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+  s = s.replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
     .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").trim();
+  /* Junk seen in the wild: leftover format placeholders ("已重铸%d次"),
+     links, machine-translation boilerplate. Reject rather than display. */
+  if(/%[0-9]*\$?[a-zA-Z]/.test(s)) return "";
+  if(/https?:\/\//i.test(s)) return "";
+  return toSimplified(s);
+}
+async function googleTranslate(text, from, to){
+  /* Google's public translate endpoint: far more accurate for single words
+     than the crowd-sourced translation memory (which produced 鬼蜮/二五仔/
+     a blockchain sentence). Falls back silently when unreachable. */
+  let ctl = null, timer = null;
+  try{ ctl = new AbortController(); timer = setTimeout(()=> ctl.abort(), 4500); }catch(e){}
+  try{
+    const r = await fetch("https://translate.googleapis.com/translate_a/single?client=gtx&sl=" +
+      encodeURIComponent(from) + "&tl=" + encodeURIComponent(to) + "&dt=t&q=" + encodeURIComponent(text),
+      ctl ? {signal: ctl.signal} : {});
+    if(!r.ok) return "";
+    const j = await r.json();
+    const out = ((j && j[0]) || []).map(seg => (seg && seg[0]) || "").join("");
+    return cleanTranslation(out);
+  }catch(e){ return ""; }
+  finally{ if(timer) clearTimeout(timer); }
 }
 function sanitizePhonetic(p){
-  /* the IPA stress marks ˈ/ˌ render flipped or broken in some phone fonts */
-  return String(p || "").replace(/ˈ/g, "'").replace(/ˌ/g, ",");
+  /* ˈ/ˌ render flipped in some phone fonts; ɹ (turned r) and friends render
+     as garbage on his phone — write them the way learner dictionaries do. */
+  return String(p || "").replace(/ˈ/g, "'").replace(/ˌ/g, ",")
+    .replace(/ɹ/g, "r").replace(/ɚ/g, "ər").replace(/ɝ/g, "ɜr");
 }
 async function translateText(text, from, to){
+  const g = await googleTranslate(text, from, to);
+  if(g && g.toLowerCase() !== String(text).toLowerCase()) return g;
   try{
     const r = await fetch("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(text) +
       "&langpair=" + encodeURIComponent(from) + "|" + encodeURIComponent(to));
@@ -502,13 +680,17 @@ async function translateText(text, from, to){
   }catch(e){ return ""; }
 }
 async function translateWord(term, pos){
-  /* Bare-word translation can be hijacked by proper nouns in the free
-     translation memory ("revere" -> 里维尔, the city). Asking with the
-     part of speech ("to revere") disambiguates; also prefer matches
-     with a decent quality score over quality-0 contributed entries. */
+  /* 1) Google first — accurate for single words.
+     2) MyMemory as fallback, but strict: a single word's Chinese gloss is
+        short; reject long sentences, Latin-letter runs and low-quality
+        crowd entries. Blank beats wrong (AI can fill it later). */
   const tries = [];
   if(pos && /verb/i.test(pos)) tries.push("to " + term);
   tries.push(term);
+  for(const q of tries){
+    const g = await googleTranslate(q, "en", "zh-CN");
+    if(g && hasCJK(g) && g.toLowerCase() !== q.toLowerCase() && g.length <= 14) return g;
+  }
   for(const q of tries){
     try{
       const r = await fetch("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(q) +
@@ -518,15 +700,13 @@ async function translateWord(term, pos){
       const cands = [];
       (j.matches || []).forEach(m => {
         const mt = cleanTranslation(m && m.translation || "");
-        if(mt && hasCJK(mt) && mt.toLowerCase() !== q.toLowerCase())
+        if(mt && hasCJK(mt) && mt.toLowerCase() !== q.toLowerCase() &&
+           mt.length <= 14 && !/[A-Za-z]{3,}/.test(mt))
           cands.push({t: mt, q: parseFloat(m.quality) || 0, m: parseFloat(m.match) || 0});
       });
       cands.sort((a, b) => (b.q - a.q) || (b.m - a.m));
       const good = cands.find(c => c.q >= 50);
       if(good) return good.t;
-      const rd = cleanTranslation((j.responseData && j.responseData.translatedText) || "");
-      if(rd && hasCJK(rd) && rd.toLowerCase() !== q.toLowerCase()) return rd;
-      if(cands.length) return cands[0].t;
     }catch(e){ /* try next phrasing */ }
   }
   return "";
@@ -550,7 +730,7 @@ async function fetchOnline(term){
     const fam = await fetchFamily(term, lemma, entry ? entry.synonyms : []);
     detail = detail || {pos:"", zh:"", meaning:"", example:"", family:[], root:"", source:"online", v:2};
     detail.family = mergeFamily([detail.family, fam], term, 8);
-    detail.root = simpleRootNote(term, lemma);
+    detail.root = etymologyFor(term, lemma);
   }else{
     detail = {pos:"", zh:"", meaning:"", example:"", family:[], root:"", source:"online", v:2};
   }
@@ -584,7 +764,7 @@ async function aiLookup(term){
   if(!s.key){ toast("先在「设置 · AI」里填你的 API Key"); switchTab("settings"); return null; }
   const base = (s.base || "https://api.openai.com/v1").replace(/\/+$/,"");
   const model = s.model || "gpt-4o-mini";
-  const prompt = "You are an English vocabulary teacher for a Chinese learner. Explain the English word/phrase: \"" + term + "\". Reply with ONLY a JSON object: {\"pos\":\"part of speech\",\"zh\":\"concise Chinese meaning\",\"meaning\":\"simple English definition\",\"example\":\"one natural example sentence\",\"exampleZh\":\"Chinese translation of the example\",\"root\":\"word root / formation analysis in Chinese\",\"mnemonic\":\"a memorable trick in Chinese\",\"family\":[\"related word 1\",\"related word 2\",\"related word 3\"]}";
+  const prompt = "You are an English vocabulary teacher for a Chinese learner. Explain the English word/phrase: \"" + term + "\". Reply with ONLY a JSON object: {\"pos\":\"part of speech\",\"zh\":\"concise Chinese meaning\",\"meaning\":\"simple English definition, at most 15 words\",\"example\":\"one natural example sentence\",\"exampleZh\":\"Chinese translation of the example\",\"root\":\"etymology in Chinese: where this word comes from (Latin/Greek origin and root meanings), plus how its parts compose the modern meaning\",\"mnemonic\":\"a memorable trick in Chinese\",\"family\":[\"related word 1\",\"related word 2\",\"related word 3\"]}";
   const r = await fetch(base + "/chat/completions", {
     method: "POST",
     headers: {"Content-Type":"application/json", "Authorization":"Bearer " + s.key},
@@ -619,7 +799,7 @@ function detailHtml(term, d, gid){
     '<span class="gl"> · ' + escapeHtml(gloss[x]) + '</span></span>').join("");
   return '<div class="card">' +
     '<div><span class="word">' + escapeHtml(term) + '</span>' + speakBtn(term, d.audio) +
-    (d.phonetic ? '<span class="phonetic">' + escapeHtml(d.phonetic) + '</span>' : '') + '</div>' +
+    (d.phonetic ? '<span class="phonetic">' + escapeHtml(sanitizePhonetic(d.phonetic)) + '</span>' : '') + '</div>' +
     (d.pos ? '<div class="pos">' + escapeHtml(d.pos) + '</div>' : '') +
     (d.zh ? '<div class="zh">' + escapeHtml(d.zh) + '</div>' : '') +
     (d.meaning ? '<div class="meaning">' + escapeHtml(d.meaning) + '</div>' : '') +
@@ -637,9 +817,9 @@ function detailHtml(term, d, gid){
     (famWords.length ? '<h3>🔗 相关词</h3><div class="tags">' + fam + '</div>' +
     '<h3>🕸️ 词汇关系（点节点可查询）</h3><div id="' + gid + '" class="graph"></div>' : '') +
     '<div class="actions">' +
-      '<button data-action="start-review-one" data-term="' + escapeHtml(term) + '">🃏 用闪卡记这个词</button>' +
       '<button class="secondary" data-action="ai-deep" data-term="' + escapeHtml(term) + '">✨ AI 深挖</button>' +
     '</div>' +
+    '<div class="small" style="margin-top:8px">✓ 已自动存入词库，会进入复习队列</div>' +
     (d.source === "ai" ? '<div class="small" style="margin-top:8px">✨ 部分内容由 AI 补全</div>' : '') +
   '</div>';
 }
@@ -711,7 +891,11 @@ async function search(termArg){
     renderResult(term, local); refreshAll(); return;
   }
   if(card.detail && card.detail.meaning && (card.detail.v || 0) >= 2){
-    saveLib(lib); renderResult(term, card.detail); refreshAll(); return;
+    const d = card.detail;
+    if(!d.root) d.root = etymologyFor(term, d.lemma || "");
+    if(d.meaning) d.meaning = simplifyDefText(d.meaning);
+    if(d.phonetic) d.phonetic = sanitizePhonetic(d.phonetic);
+    saveLib(lib); renderResult(term, d); refreshAll(); return;
   }
   const result = document.getElementById("result");
   result.innerHTML = '<div class="card"><span class="spin"></span>正在在线查询「' + escapeHtml(term) + '」…</div>';
@@ -740,7 +924,6 @@ async function search(termArg){
       '<div class="meaning">离线词典里没有它，在线词典也没查到（可能没网，或它是非常用短语）。它已加入词库，你可以：</div>' +
       '<div class="actions">' +
         '<button data-action="ai-deep" data-term="' + escapeHtml(term) + '">✨ 用 AI 查询</button>' +
-        '<button class="secondary" data-action="start-review-one" data-term="' + escapeHtml(term) + '">🃏 先做成闪卡</button>' +
       '</div></div>';
   }
   refreshAll();
@@ -823,6 +1006,10 @@ function startReview(onlyTerm){
   }
   session = {queue: queue.slice(), total: queue.length, done: 0,
     stats: {again:0, hard:0, good:0, easy:0}, current: null, showing: false, requeued: {}};
+  const mix = {review: 0, learning: 0, fresh: 0};
+  queue.forEach(t => { const st = (lib[t] || {}).state || "new";
+    if(st === "review") mix.review++; else if(st === "learning") mix.learning++; else mix.fresh++; });
+  session.mix = mix;
   switchTab("review");
   nextCard();
 }
@@ -850,20 +1037,21 @@ function nextCard(){
 }
 function progressHtml(){
   const pct = session.total ? Math.round(session.done / session.total * 100) : 0;
+  const mix = session.mix ? ' · 到期复习 ' + session.mix.review + ' · 学习中 ' + session.mix.learning + ' · 新词 ' + session.mix.fresh : '';
   return '<div class="small">进度 ' + session.done + ' / ' + session.total +
-    ' · 剩余 ' + (session.queue.length + 1) + ' 张</div><div class="progress"><i style="width:' + pct + '%"></i></div>';
+    ' · 剩余 ' + (session.queue.length + 1) + ' 张' + mix + '</div><div class="progress"><i style="width:' + pct + '%"></i></div>';
 }
 function renderCardFront(){
   const term = session.current;
   const lib = loadLib(); const card = lib[term] || {};
   const d = card.detail || findLocal(term) || {};
   document.getElementById("session").innerHTML =
-    '<div class="card">' + progressHtml() +
+    '<div class="card" data-action="show-answer" style="cursor:pointer">' + progressHtml() +
     '<div class="fc"><div class="small">先想一想：它是什么意思？</div>' +
-    '<div class="fcword" data-action="lookup-term" data-term="' + escapeHtml(term) + '" style="cursor:pointer">' + escapeHtml(term) + '</div>' +
-    (d.phonetic ? '<div class="phonetic">' + escapeHtml(d.phonetic) + '</div>' : '') +
+    '<div class="fcword">' + escapeHtml(term) + '</div>' +
+    (d.phonetic ? '<div class="phonetic">' + escapeHtml(sanitizePhonetic(d.phonetic)) + '</div>' : '') +
     '<div style="margin-top:12px">' + speakBtn(term, d.audio) + '</div>' +
-    '<div class="hint">点发音听一听，想好后点「显示答案」</div></div>' +
+    '<div class="hint">点卡片任意处，翻面看答案</div></div>' +
     '<div class="actions"><button data-action="show-answer">显示答案</button></div>' +
     (undoState && undoState.sessionRef === session ? '<div class="actions"><button class="secondary" data-action="undo-grade">↩ 撤销上一张评分</button></div>' : '') +
     '</div>';
@@ -881,8 +1069,8 @@ function renderCardBack(){
   };
   document.getElementById("session").innerHTML =
     '<div class="card">' + progressHtml() +
-    '<div><span class="word" data-action="lookup-term" data-term="' + escapeHtml(term) + '" style="font-size:26px;cursor:pointer">' + escapeHtml(term) + '</span>' + speakBtn(term, d.audio) +
-    (d.phonetic ? '<span class="phonetic">' + escapeHtml(d.phonetic) + '</span>' : '') + '</div>' +
+    '<div><span class="word" style="font-size:26px">' + escapeHtml(term) + '</span>' + speakBtn(term, d.audio) +
+    (d.phonetic ? '<span class="phonetic">' + escapeHtml(sanitizePhonetic(d.phonetic)) + '</span>' : '') + '</div>' +
     (d.pos ? '<div class="pos">' + escapeHtml(d.pos) + '</div>' : '') +
     (d.zh ? '<div class="zh">' + escapeHtml(d.zh) + '</div>' : '') +
     (d.meaning ? '<div class="meaning">' + escapeHtml(d.meaning) + '</div>' : '') +
@@ -892,7 +1080,7 @@ function renderCardBack(){
     (d.example ? '<div class="example">💬 ' + escapeHtml(d.example) +
       ' <button class="speakbtn" data-action="speak" data-text="' + escapeHtml(d.example) + '">🔊</button></div>' : '') +
     ((d.contextWords && d.contextWords.length && !/\s/.test(term)) ? '<div class="example" style="background:#fffbeb">📍 同批选词：' +
-      d.contextWords.map(w => '<span class="tag" data-action="lookup-term" data-term="' + escapeHtml(w) + '">' + escapeHtml(w) + '</span>').join(' ') +
+      d.contextWords.map(w => '<span class="tag">' + escapeHtml(w) + '</span>').join(' ') +
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>'
     : (d.contextSentence ? '<div class="example" style="background:#fffbeb">📖 出处原句：' + escapeHtml(d.contextSentence) +
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>' : '')) +
@@ -929,6 +1117,13 @@ function refreshAll(){
   const total = due + learning;
   const badge = document.getElementById("dueBadge");
   badge.textContent = total; badge.classList.toggle("hidden", total === 0);
+  renderDashboard();
+  try{
+    if("setAppBadge" in navigator){
+      if(total) navigator.setAppBadge(total).catch(()=>{});
+      else if("clearAppBadge" in navigator) navigator.clearAppBadge().catch(()=>{});
+    }
+  }catch(e){}
 }
 function fmtDue(card){
   if(!card.due || card.due <= Date.now()) return "已到期";
@@ -1297,6 +1492,37 @@ function startVoice(){
   try{ recognizer.start(); }catch(e){ toast("无法启动麦克风"); }
 }
 
+function healEmptyCards(){
+  /* Cards whose background enrichment failed (offline, quota, or a
+     foreign word like "himmel") sit in the library with no meaning.
+     Retry a few of them on each launch so the library heals itself. */
+  try{
+    if(typeof navigator !== "undefined" && navigator.onLine === false) return;
+    const lib = loadLib();
+    const targets = Object.keys(lib).filter(t => {
+      const c = lib[t];
+      return !cardReviewable(c) && !(c.reps || 0) && (c.healTries || 0) < 3;
+    }).slice(0, 5);
+    if(!targets.length) return;
+    targets.forEach(t => { lib[t].healTries = (lib[t].healTries || 0) + 1; });
+    saveLib(lib);
+    (async () => {
+      for(const t of targets){
+        try{
+          const d = await fetchOnline(t);
+          if(d && (d.meaning || d.zh)){
+            const lib2 = loadLib(); const c = ensureCard(lib2, t);
+            if(c.detail && c.detail.contextWords) d.contextWords = c.detail.contextWords;
+            if(c.detail && c.detail.source) d.source = c.detail.source;
+            c.detail = d; c.unknown = false; saveLib(lib2);
+          }
+        }catch(e){}
+      }
+      refreshAll();
+    })();
+  }catch(e){}
+}
+
 /* ================= Tabs & global actions ================= */
 function switchTab(name){
   document.querySelectorAll("nav button").forEach(x => x.classList.toggle("active", x.dataset.tab === name));
@@ -1489,7 +1715,7 @@ document.getElementById("photoInput").addEventListener("change", e => {
 });
 document.getElementById("ocrRunBtn").addEventListener("click", runOCR);
 const AI_PRESETS = {openai:{base:"https://api.openai.com/v1", model:"gpt-4o-mini"},
-  deepseek:{base:"https://api.deepseek.com/v1", model:"deepseek-chat"},
+  deepseek:{base:"https://api.deepseek.com/v1", model:"deepseek-v4-flash"},
   qwen:{base:"https://dashscope.aliyuncs.com/compatible-mode/v1", model:"qwen-turbo"},
   moonshot:{base:"https://api.moonshot.cn/v1", model:"moonshot-v1-8k"},
   gemini:{base:"https://generativelanguage.googleapis.com/v1beta/openai/", model:"gemini-2.5-flash"},
@@ -1523,12 +1749,29 @@ document.getElementById("exportBtn").addEventListener("click", ()=>{
   document.getElementById("aiModel").value = s.model || "";
   document.getElementById("aiPreset").value = s.preset || "";
   document.getElementById("aiAuto").checked = s.auto !== false;
+  if(s.preset === "deepseek" && s.model === "deepseek-chat"){
+    /* deepseek-chat was retired by DeepSeek; move saved settings over */
+    s.model = "deepseek-v4-flash";
+    document.getElementById("aiModel").value = s.model;
+    try{ localStorage.setItem("wordnest_ai_settings", JSON.stringify(s)); }catch(e){}
+  }
   const asEl = document.getElementById("autoSpeak");
   if(asEl){ asEl.checked = autoSpeakOn();
     asEl.addEventListener("change", ()=>{ try{ localStorage.setItem("wordnest_autospeak", asEl.checked ? "1" : "0"); }catch(e){} }); }
   initCropDrag();
   refreshAll();
   renderHistory();
+  document.addEventListener("pointerdown", function prime(){
+    document.removeEventListener("pointerdown", prime);
+    try{
+      if("speechSynthesis" in window){
+        speechSynthesis.resume();
+        const u = new SpeechSynthesisUtterance(" "); u.volume = 0;
+        speechSynthesis.speak(u);
+      }
+    }catch(e){}
+  });
+  setTimeout(healEmptyCards, 1500);
 })();
 </script>
 </body>
