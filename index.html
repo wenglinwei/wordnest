@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<title>WordNest V3.6.2 — English Learning</title>
+<title>WordNest V3.6.3 — English Learning</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#fff;color:#111;font-family:'Space Mono','Sarasa Mono SC',ui-monospace,'SF Mono',Menlo,'PingFang SC','Helvetica Neue',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
@@ -156,12 +156,6 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 <body>
 <div id="splash"><div style="font-size:30px;font-weight:700;letter-spacing:-.02em">WordNest</div></div>
 <div class="app">
-<div class="search" style="margin-top:6px">
-<input id="q" autocomplete="off" autocapitalize="none" placeholder="输入单词，或粘贴一整段英文点选生词">
-<button class="iconbtn" id="micBtn" title="语音输入">🎤</button>
-<button id="searchBtn">查询</button>
-</div>
-<div id="searchHistory" class="hidden"><div class="histlbl">最近查询（点一下再看）</div><div class="chips" id="historyChips" style="margin-top:6px"></div></div>
 <input type="file" id="photoInput" accept="image/*" class="hidden">
 <nav>
 <button class="active" data-tab="search" title="搜索" aria-label="搜索"><span class="ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5L16.7 16.7"/></svg></span></button>
@@ -170,6 +164,12 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 </nav>
 
 <section id="searchTab">
+<div class="search" style="margin-top:6px">
+<input id="q" autocomplete="off" autocapitalize="none" placeholder="输入单词，或粘贴一整段英文点选生词">
+<button class="iconbtn" id="micBtn" title="语音输入">🎤</button>
+<button id="searchBtn">查询</button>
+</div>
+<div id="searchHistory" class="hidden"><div class="histlbl">最近查询（点一下再看）</div><div class="chips" id="historyChips" style="margin-top:6px"></div></div>
 <div class="lastrow">
 <span id="lastLabel" class="lastlabel hidden">上次查的词</span>
 <span style="flex:1"></span>
@@ -181,7 +181,6 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 <button data-menu="settings">设置 · AI</button>
 </div>
 </div>
-<div id="dash"></div>
 <div id="result" class="empty">试试 <b>hello</b>、<b>improve</b>、<b>figure out</b><br><span class="small">支持中文输入，如「承担」；粘贴整段英文可点选生词</span></div>
 </section>
 
@@ -263,7 +262,7 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 </div>
 </section>
 
-<footer>WordNest V3.6.2 · 数据存本机</footer>
+<footer>WordNest V3.6.3 · 数据存本机</footer>
 </div>
 
 <div id="toast" class="toast"></div>
@@ -414,23 +413,6 @@ function forecastCounts(lib){
     else if(idx === 2) out.day2++;
   });
   return out;
-}
-function renderDashboard(){
-  const el = document.getElementById("dash"); if(!el) return;
-  const f = forecastCounts(loadLib());
-  if(!f.today && !f.tomorrow && !f.day2){
-    el.innerHTML = '<div class="dash"><div style="font-size:19px;font-weight:800">🃏 今日复习</div>' +
-      '<div class="dfore" style="margin-top:6px">近三天没有到期的卡片 🎉 查些新词进来吧。</div></div>';
-    return;
-  }
-  el.innerHTML = '<div class="dash">' +
-    (f.overdue ? '<div class="dover">⚠️ 有 ' + f.overdue + ' 张已逾期——没背的不会消失，会顺延累积到今天</div>' : '') +
-    '<div class="drow"><div><div style="font-size:13px;opacity:.8">🃏 今日待复习</div>' +
-    '<div class="dnum">' + f.today + '<span style="font-size:18px"> 张</span></div></div>' +
-    '<div class="dfore">明天 ' + f.tomorrow + ' 张 · 后天 ' + f.day2 + ' 张</div></div>' +
-    (f.today ? '<button data-action="start-review">▶ 开始今日复习</button>'
-             : '<div class="dfore" style="margin-top:8px">今天没有要背的，明天的先放着。</div>') +
-    '</div>';
 }
 function cardReviewable(c){
   if(!c) return false;
@@ -1022,12 +1004,13 @@ function noteSearched(term){
   }catch(e){}
   renderHistory();
 }
+let histWanted = false;
 function renderHistory(){
   const wrap = document.getElementById("searchHistory");
   const chips = document.getElementById("historyChips");
   if(!wrap || !chips) return;
   const h = loadHistory();
-  wrap.classList.toggle("hidden", !h.length);
+  wrap.classList.toggle("hidden", !(h.length && histWanted));
   chips.innerHTML = h.map(x =>
     '<span class="chip" data-action="lookup" data-term="' + escapeHtml(x) + '">' + escapeHtml(x) + '</span>').join("");
 }
@@ -1178,6 +1161,8 @@ function renderCardBack(){
     : (d.contextSentence ? '<div class="example">出处原句：' + escapeHtml(d.contextSentence) +
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>' : '')) +
     (d.root ? '<div class="meaning" style="margin-top:10px"><b>词根：</b>' + escapeHtml(d.root) + '</div>' : '') +
+    '<div class="modes"><button class="modebtn" data-action="mode-speak">跟读</button>' +
+    '<button class="modebtn" data-action="mode-cloze">挖空手写</button></div>' +
     '<div class="grades">' +
       gBtn("again","重来") + gBtn("hard","困难") +
       gBtn("good","良好") + gBtn("easy","简单") +
@@ -1214,7 +1199,6 @@ function refreshAll(){
   const total = due + learning;
   const badge = document.getElementById("dueBadge");
   badge.textContent = total > 99 ? "99+" : total; badge.classList.toggle("hidden", total === 0);
-  renderDashboard();
   renderReviewBar();
   try{
     if("setAppBadge" in navigator){
@@ -1359,12 +1343,19 @@ async function runOCR(){
       tokens = buildTextTokens((res.data && res.data.text) || "");
     }
     const withLetters = tokens.filter(t => /[A-Za-z]/.test(t.raw));
-    tokens = withLetters.filter(t => t.conf === null || t.conf === undefined || t.conf >= 30);
+    const confKept = withLetters.filter(t => t.conf === null || t.conf === undefined || t.conf >= 30);
+    tokens = confKept.filter(t => plausibleWord(t.raw) || (typeof t.conf === "number" && t.conf >= 85));
     const ignored = withLetters.length - tokens.length;
-    if(!tokens.length){ status.textContent = "框选区域里没有识别到英文，试着框紧一点、光线好一点。"; return; }
-    const pre = tokens.filter(t => t.selected).length;
-    status.textContent = "识别完成：共 " + tokens.length + " 个词，机器预选了 " + pre + " 个疑似被标记的词" +
-      (ignored ? "，已自动忽略 " + ignored + " 个低置信度词（多为手写或污渍）" : "") +
+    if(!tokens.length){ status.textContent = "框选区域里没有识别到英文，试着框紧一点、只框英文行、避开屏幕反光。"; return; }
+    let pre = tokens.filter(t => t.selected).length;
+    let markNote = "";
+    if(tokens.length >= 8 && pre > tokens.length * 0.6){
+      /* nearly everything "marked" = the detector misfired on this photo */
+      tokens.forEach(t => { t.selected = false; });
+      pre = 0; markNote = "（这张照片上没检测到可靠的标记，预选已取消，请手动点选）";
+    }
+    status.textContent = "识别完成：共 " + tokens.length + " 个词，机器预选了 " + pre + " 个疑似被标记的词" + markNote +
+      (ignored ? "，已自动忽略 " + ignored + " 个低置信度或不像英文词的碎片" : "") +
       "。点词选中/取消，选中后自动翻译；分开点取各自成卡，同行连选合成一张短语卡。";
     setupCapture(out, tokens, "photo");
   }catch(err){
@@ -1426,6 +1417,15 @@ function buildTextTokens(text){
   const sentences = assignSentences(tokens);
   tokens.forEach(t => t.sentenceText = sentences[t.sentenceIdx] || "");
   return tokens;
+}
+const TWO_LETTER_OK = /^(am|an|as|at|be|by|do|go|he|hi|if|in|is|it|me|my|no|of|oh|on|or|ox|so|to|up|us|we|ok)$/;
+function plausibleWord(raw){
+  const w = cleanTerm(raw);
+  if(!w) return false;
+  if(w.length === 1) return w === "a" || w === "i";
+  if(!/[aeiouy]/.test(w)) return false;
+  if(w.length === 2) return TWO_LETTER_OK.test(w);
+  return true;
 }
 function buildOcrTokens(words){
   const items = words.filter(w => w && w.text && w.bbox).map(w => ({
@@ -1706,6 +1706,19 @@ function closeMode(){
 function clozeOf(sent, term){
   const low = sent.toLowerCase(), t = String(term).toLowerCase();
   let idx = low.indexOf(t), len = String(term).length;
+  if(idx === 0 && len >= sent.trim().length){
+    /* the "sentence" IS the card text (phrase card): blank only its longest word */
+    const words = sent.split(/\s+/);
+    let best = -1, bl = 0;
+    words.forEach((w2, i2) => { const c = w2.replace(/[^A-Za-z'-]/g, "");
+      if(c.length > bl){ bl = c.length; best = i2; } });
+    if(best >= 0 && bl >= 3){
+      const w2 = words[best], off = sent.indexOf(w2);
+      return { html: escapeHtml(sent.slice(0, off)) + '<span class="blank">&nbsp;</span>' + escapeHtml(sent.slice(off + w2.length)),
+               target: w2.replace(/[^A-Za-z'-]/g, "") };
+    }
+    return null;
+  }
   if(idx < 0 && /\s/.test(term)){
     const head = term.split(/\s+/)[0];
     idx = low.indexOf(head.toLowerCase()); len = head.length;
@@ -1742,11 +1755,17 @@ function openMode(kind){
       FACE_SVGS.map((f, i) => '<button class="face" data-action="mode-face" data-i="' + i + '" aria-label="' + f[0] + '">' + f[1] + '</button>').join("") +
       '</div></div>';
   }else{
-    const cz = clozeOf(sent, term);
+    let cz;
+    if(sent === term && !/\s/.test(term)){
+      /* single-word card without a sentence: prompt with the meaning, write the word */
+      cz = { html: '<span style="color:#8a8a8a;font-size:14.5px">' + escapeHtml(d.zh || d.meaning || "想一想这个词") + '</span><br><span class="blank">&nbsp;</span>',
+             target: term };
+    }else cz = clozeOf(sent, term);
     if(cz) modeState.target = cz.target;
     panel.innerHTML = '<div class="panel">' +
       (cz ? '<div style="font-size:16.5px;line-height:1.8">' + cz.html + '</div>' +
-        '<canvas id="pad" style="margin-top:14px"></canvas>' +
+        '<div class="small" style="margin-top:10px">在下面手写空格里缺的词，写完点「核对」</div>' +
+        '<canvas id="pad" style="margin-top:10px"></canvas>' +
         '<div style="display:flex;gap:9px;margin-top:14px;align-items:center">' +
         '<button class="pillbtn ghost" data-action="mode-clear">清除</button>' +
         '<button class="pillbtn" data-action="mode-check">核对</button>' +
@@ -2022,6 +2041,8 @@ document.querySelectorAll("#moreMenu button").forEach(b =>
   }));
 document.getElementById("searchBtn").addEventListener("click", ()=> search());
 document.getElementById("q").addEventListener("keydown", e => { if(e.key === "Enter") search(); });
+document.getElementById("q").addEventListener("focus", ()=>{ histWanted = true; renderHistory(); });
+document.getElementById("q").addEventListener("blur", ()=>{ setTimeout(()=>{ histWanted = false; renderHistory(); }, 250); });
 document.getElementById("q").addEventListener("input", e => { e.target.classList.remove("searched"); });
 document.getElementById("micBtn").addEventListener("click", startVoice);
 document.getElementById("photoBtn").addEventListener("click", ()=>{
