@@ -6,67 +6,77 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="WordNest">
-<meta name="theme-color" content="#18202a">
+<meta name="theme-color" content="#ffffff">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.webmanifest">
-<title>WordNest V3.4 — English Learning</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+<title>WordNest V3.5 — English Learning</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#f6f7fb;color:#18202a;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",Arial,sans-serif}
-.app{max-width:720px;margin:auto;min-height:100vh;padding:18px 16px 40px}
-header{padding:8px 2px 10px}
-h1{font-size:30px;margin:0 0 4px}
-.sub{color:#6b7280;font-size:14px}
-.search{display:flex;gap:8px;background:white;padding:10px;border-radius:18px;box-shadow:0 5px 20px #0000000b;align-items:center}
-input{flex:1;border:0;outline:0;font-size:18px;min-width:0;padding:8px 10px;background:transparent}
-button{border:0;border-radius:13px;padding:10px 14px;font-weight:700;font-size:15px;background:#18202a;color:white;cursor:pointer}
-button.secondary{background:#eef1f5;color:#18202a}
+body{margin:0;background:#fff;color:#000;font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",Arial,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+.app{max-width:720px;margin:auto;min-height:100vh;padding:14px 16px 112px}
+header{padding:6px 2px 8px;display:flex;align-items:center;justify-content:space-between;position:relative}
+h1{font-size:24px;margin:0;font-weight:800;letter-spacing:-.02em}
+h1 .ver{font-size:12px;color:#9ca3af;font-weight:600;margin-left:7px;letter-spacing:0}
+h2{font-size:17px;font-weight:700}
+h3{font-size:14px;font-weight:700}
+.starbtn{background:transparent;color:#000;font-size:22px;padding:4px 8px;border-radius:5px;line-height:1}
+.starbtn.active{color:#265FF8}
+#moreMenu{position:absolute;right:0;top:48px;background:#fff;border:1px solid #e8e8e8;border-radius:10px;box-shadow:0 12px 32px #0000001f;padding:6px;z-index:60;min-width:176px;display:flex;flex-direction:column}
+#moreMenu button{background:transparent;color:#000;text-align:left;font-weight:400;font-size:14px;padding:11px 12px;border-radius:6px}
+#moreMenu button:active{background:#f3f4f6}
+.search{display:flex;gap:8px;background:#fff;padding:8px;border:1.5px solid #e5e7eb;border-radius:12px;align-items:center}
+input{flex:1;border:0;outline:0;font-size:17px;min-width:0;padding:8px 10px;background:transparent;font-family:inherit;color:#000}
+button{border:0;border-radius:5px;padding:11px 16px;font-weight:700;font-size:15px;background:#020202;color:#fff;cursor:pointer;font-family:inherit}
+button.secondary{background:#eef1f5;color:#000}
 button:disabled{opacity:.45;cursor:default}
-nav{display:flex;gap:8px;margin:14px 0;overflow:auto}
-nav button{white-space:nowrap;background:#fff;color:#4b5563;position:relative}
-nav button.active{background:#18202a;color:white}
-.badge{display:inline-block;min-width:20px;padding:1px 6px;margin-left:6px;border-radius:999px;background:#ef4444;color:#fff;font-size:12px;font-weight:800;vertical-align:2px}
-.card{background:white;border-radius:20px;padding:18px;margin:12px 0;box-shadow:0 5px 20px #00000008}
-.word{font-size:32px;font-weight:800;margin:0 0 5px;word-break:break-word}
-.pos{color:#7c3aed;font-weight:700}
-.phonetic{color:#6b7280;font-size:16px;font-weight:600}
-.zh{font-size:22px;font-weight:700;margin:12px 0}
-.meaning{line-height:1.6;color:#374151}
-.example{background:#f6f7fb;padding:13px;border-radius:14px;margin-top:12px;line-height:1.5}
+nav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid #ececec;display:flex;justify-content:space-around;align-items:flex-start;height:calc(65px + env(safe-area-inset-bottom));padding:8px 0 env(safe-area-inset-bottom);z-index:40}
+nav button{background:transparent;color:#000;font-size:26px;padding:6px 20px;position:relative;border-radius:5px;line-height:1.15}
+nav button.active{color:#265FF8;background:transparent}
+.badge{position:absolute;top:0;right:8px;min-width:19px;padding:1px 5px;border-radius:999px;background:#ef4444;color:#fff;font-size:11px;font-weight:800;text-align:center}
+.card{background:#fff;border:1px solid #ececec;border-radius:16px;padding:18px;margin:12px 0;box-shadow:0 2px 10px #00000006}
+.word{font-size:32px;font-weight:700;margin:0 0 5px;word-break:break-word;letter-spacing:-.01em}
+.pos{color:#000;font-weight:700;font-size:14px}
+.phonetic{color:#6b7280;font-size:15px;font-weight:500}
+.zh{font-size:16px;font-weight:700;margin:10px 0 6px}
+.meaning{line-height:1.65;color:#000;font-size:14px}
+.example{background:#f7f7f5;padding:13px;border-radius:10px;margin-top:12px;line-height:1.55;font-size:14px}
 .tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.tag{background:#eef1f5;border-radius:999px;padding:7px 10px;font-size:14px;cursor:pointer}
+.tag{background:#D6E9F2;color:#000;border-radius:999px;padding:7px 10px;font-size:14px;cursor:pointer}
 .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
 .actions button{flex:1;min-width:120px}
 .empty{text-align:center;color:#6b7280;padding:45px 15px}
 .hidden{display:none!important}
 .item{padding:13px 0;border-bottom:1px solid #edf0f3;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .item:last-child{border-bottom:0}
-.item b{font-size:18px}
+.item b{font-size:16px}
 .small{font-size:13px;color:#6b7280}
-.graph{height:300px;background:#f7f8fb;border-radius:16px;position:relative;overflow:hidden;margin-top:14px}
+.graph{height:300px;background:#f7f8fb;border-radius:12px;position:relative;overflow:hidden;margin-top:10px}
 .node{position:absolute;padding:9px 12px;border-radius:999px;background:white;box-shadow:0 3px 12px #0002;font-weight:700;font-size:14px;cursor:pointer}
 .line{position:absolute;height:2px;background:#cfd5dc;transform-origin:0 50%}
-.toast{position:fixed;left:50%;bottom:25px;transform:translateX(-50%);background:#18202a;color:#fff;padding:11px 15px;border-radius:12px;display:none;z-index:50;max-width:90%;text-align:center}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#020202;color:#fff;padding:11px 15px;border-radius:10px;display:none;z-index:50;max-width:90%;text-align:center}
 footer{text-align:center;color:#9ca3af;font-size:12px;margin-top:25px;line-height:1.5}
 .stats{display:flex;gap:10px;margin:12px 0}
-.stat{flex:1;background:white;border-radius:18px;padding:14px 10px;text-align:center;box-shadow:0 5px 20px #00000008}
+.stat{flex:1;background:white;border-radius:16px;padding:14px 10px;text-align:center;box-shadow:0 2px 10px #00000006}
 .stat .num{font-size:28px;font-weight:800}
 .stat .num.due{color:#ef4444}
 .stat .lbl{font-size:12px;color:#6b7280;margin-top:2px}
-.iconbtn{flex:0 0 auto;width:44px;height:44px;border-radius:13px;padding:0;font-size:20px;background:#eef1f5;color:#18202a}
-.speakbtn{background:#eef1f5;color:#18202a;border-radius:999px;padding:6px 12px;font-size:15px;vertical-align:middle;margin-left:8px}
+.iconbtn{flex:0 0 auto;width:44px;height:44px;border-radius:5px;padding:0;font-size:20px;background:#eef1f5;color:#000}
+.speakbtn{background:#eef1f5;color:#000;border-radius:999px;padding:6px 12px;font-size:15px;vertical-align:middle;margin-left:8px}
 .tools{display:flex;gap:8px;margin-top:10px}
 .tools button{flex:1}
 .fc{text-align:center;padding:26px 18px}
-.fc .fcword{font-size:40px;font-weight:800;word-break:break-word;margin:10px 0}
+.fc .fcword{font-size:40px;font-weight:700;word-break:break-word;margin:10px 0;letter-spacing:-.01em}
 .fc .hint{color:#9ca3af;font-size:14px;margin-top:8px}
 .progress{height:8px;background:#eef1f5;border-radius:99px;overflow:hidden;margin:10px 0}
-.progress i{display:block;height:100%;background:#18202a;border-radius:99px;transition:width .3s}
+.progress i{display:block;height:100%;background:#020202;border-radius:99px;transition:width .3s}
 .grades{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px}
 .grades button{padding:12px 4px;font-size:16px;color:#fff}
 .grades .iv{display:block;font-size:12px;font-weight:600;opacity:.8;margin-top:3px}
 .g-again{background:#ef4444}.g-hard{background:#f59e0b}.g-good{background:#22c55e}.g-easy{background:#3b82f6}
-.cropwrap{position:relative;width:100%;overflow:hidden;border-radius:14px;background:#111;touch-action:none;user-select:none;-webkit-user-select:none}
+.cropwrap{position:relative;width:100%;overflow:hidden;border-radius:12px;background:#111;touch-action:none;user-select:none;-webkit-user-select:none}
 .cropwrap img{display:block;width:100%;pointer-events:none}
 .cropbox{position:absolute;border:2.5px solid #22c55e;box-shadow:0 0 0 9999px rgba(0,0,0,.45);border-radius:6px;cursor:move;touch-action:none}
 .crophandle{position:absolute;right:-14px;bottom:-14px;width:28px;height:28px;border-radius:50%;background:#22c55e;color:#fff;font-size:16px;line-height:28px;text-align:center;cursor:nwse-resize;touch-action:none}
@@ -74,14 +84,14 @@ footer{text-align:center;color:#9ca3af;font-size:12px;margin-top:25px;line-heigh
 .chip{background:#eef1f5;color:#6b7280;border-radius:999px;padding:8px 12px;font-size:15px;font-weight:700;cursor:pointer}
 .field{margin:12px 0}
 .field label{display:block;font-size:13px;color:#6b7280;margin-bottom:6px;font-weight:700}
-.field input{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 12px;font-size:16px;background:#fff}
-.spin{display:inline-block;width:16px;height:16px;border:2.5px solid #d1d5db;border-top-color:#18202a;border-radius:50%;animation:sp 0.8s linear infinite;vertical-align:-3px;margin-right:8px}
+.field input{width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:11px 12px;font-size:16px;background:#fff}
+.spin{display:inline-block;width:16px;height:16px;border:2.5px solid #d1d5db;border-top-color:#020202;border-radius:50%;animation:sp 0.8s linear infinite;vertical-align:-3px;margin-right:8px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .recording{background:#ef4444!important;color:#fff!important}
 #q.searched{color:#9ca3af}
-.tag .gl{color:#6b7280;font-weight:400;font-size:12px}
+.tag .gl{color:#3A5B53;font-weight:400;font-size:12px}
 .node .gl{display:block;font-size:11px;font-weight:400;color:#6b7280}
-.capzh{color:#047857;font-weight:700;font-size:15px;margin-top:2px}
+.capzh{color:#3A5B53;font-weight:700;font-size:15px;margin-top:2px}
 .histlbl{font-size:12px;color:#9ca3af;margin:8px 2px 0}
 .capline{padding:3px 0;border-bottom:1px dashed #e8ebf0}
 .capline:last-child{border-bottom:0}
@@ -89,45 +99,58 @@ footer{text-align:center;color:#9ca3af;font-size:12px;margin-top:25px;line-heigh
 .tok:hover{background:#eef1f5}
 .tok.sel{background:#fde68a;font-weight:700;box-shadow:inset 0 0 0 1.5px #f59e0b}
 .tok.pre{box-shadow:inset 0 -3px 0 #f59e0b}
-.captext{background:#f7f8fb;border-radius:14px;padding:12px;margin-top:10px}
+.captext{background:#f7f8fb;border-radius:12px;padding:12px;margin-top:10px}
 mark{background:#fde68a;border-radius:4px;padding:0 3px}
-textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 12px;font-size:16px;font-family:inherit;min-height:84px}
-.dash{background:linear-gradient(135deg,#18202a,#2b3a4d);color:#fff;border-radius:20px;padding:18px;margin:12px 0;box-shadow:0 8px 24px #18202a30}
+textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:11px 12px;font-size:16px;font-family:inherit;min-height:84px}
+.dash{background:#3A5B53;color:#fff;border-radius:16px;padding:18px;margin:12px 0;box-shadow:0 4px 16px #3A5B5330}
 .dash .dnum{font-size:46px;font-weight:800;line-height:1.05}
 .dash .drow{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap}
 .dash .dfore{font-size:14px;opacity:.85;padding-bottom:6px}
-.dash .dover{color:#fca5a5;font-weight:700;font-size:13px}
-.dash button{background:#f59e0b;color:#18202a;margin-top:12px;font-size:16px}
+.dash .dover{color:#fecaca;font-weight:700;font-size:13px}
+.dash button{background:#fff;color:#020202;margin-top:12px;font-size:16px}
+#splash{position:fixed;inset:0;background:#fff;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;transition:opacity .45s ease}
+#srcPop{background:#D9D9D9;border-radius:5px;padding:4px;margin-top:10px}
+#srcPop button{display:block;width:100%;background:transparent;color:#000;font-weight:400;font-size:14px;text-align:left;padding:11px 12px;border-radius:4px}
+.donecard{background:#CADDC9;border-radius:16px;padding:16px 18px;margin:12px 0;color:#000}
+.donecard .secondary{background:#fff}
 </style>
 </head>
 <body>
+<div id="splash"><div style="font-size:54px">🌱</div><div style="font-size:30px;font-weight:800;letter-spacing:-.02em">WordNest</div></div>
 <div class="app">
 <header>
-<h1>🌱 WordNest <span style="font-size:15px;color:#7c3aed">V3.4</span></h1>
-<div class="sub">查单词 → 理解 → 建立词汇关系 → 间隔复习</div>
+<h1>WordNest<span class="ver">V3.5</span></h1>
+<button id="navMore" class="starbtn" type="button" title="闪卡菜单">⭐</button>
+<div id="moreMenu" class="hidden">
+<button data-menu="library">闪卡列表</button>
+<button data-menu="share">分享</button>
+<button data-menu="stats">学习情况</button>
+<button data-menu="settings">设置 · AI</button>
+</div>
 </header>
 
-<div class="search" style="margin-top:14px">
+<div class="search" style="margin-top:6px">
 <input id="q" autocomplete="off" autocapitalize="none" placeholder="输入单词，或粘贴一整段英文点选生词">
 <button class="iconbtn" id="micBtn" title="语音输入">🎤</button>
 <button id="searchBtn">查询</button>
 </div>
 <div id="searchHistory" class="hidden"><div class="histlbl">最近查询（点一下再看）</div><div class="chips" id="historyChips" style="margin-top:6px"></div></div>
-<div class="tools">
-<button class="secondary" id="photoBtn">📷 拍照收词</button>
 <input type="file" id="photoInput" accept="image/*" class="hidden">
+<div id="srcPop" class="hidden">
+<button data-src="camera" type="button">拍照</button>
+<button data-src="library" type="button">照片图库</button>
+<button data-src="file" type="button">取文件</button>
 </div>
 
 <section id="ocrPanel" class="card hidden">
 <h2 style="margin-top:0">✂️ 框选要识别的英文</h2>
-<div class="small" style="margin-bottom:10px">拖动绿框选区域。</div>
 <div class="cropwrap" id="cropWrap">
 <img id="cropImg" alt="待识别照片">
 <div class="cropbox" id="cropBox"><div class="crophandle" id="cropHandle">↘</div></div>
 </div>
 <div class="actions">
-<button id="ocrRunBtn">🔎 识别框选区域</button>
-<button class="secondary" id="ocrCancelBtn">取消</button>
+<button id="ocrRunBtn">🔎 识别内容</button>
+<button id="ocrCancelBtn">取消</button>
 </div>
 <div id="ocrStatus" class="small" style="margin-top:10px"></div>
 <div id="ocrResult"></div>
@@ -139,17 +162,14 @@ textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 1
 </section>
 
 <nav>
-<button class="active" data-tab="search">🔍 搜索</button>
-<button data-tab="review">🃏 复习<span class="badge hidden" id="dueBadge">0</span></button>
-<button id="navMore" type="button">⚙️ 更多</button>
+<button class="active" data-tab="search" title="搜索">🔍</button>
+<button id="photoBtn" type="button" title="拍照收词">📷</button>
+<button data-tab="review" title="闪卡复习">✨<span class="badge hidden" id="dueBadge">0</span></button>
 </nav>
-<div id="moreMenu" class="tools hidden">
-<button class="secondary" data-menu="library">📚 我的词库</button>
-<button class="secondary" data-menu="settings">⚙️ 设置 · AI</button>
-</div>
 
 <section id="searchTab">
 <div id="dash"></div>
+<div id="batchDone" class="hidden"></div>
 <div id="result" class="empty">试试 <b>hello</b>、<b>improve</b>、<b>figure out</b><br><span class="small">支持中文输入，如「承担」；粘贴整段英文可点选生词</span></div>
 </section>
 
@@ -165,11 +185,17 @@ textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 1
 </div>
 </section>
 
+<section id="statsTab" class="hidden">
+<div class="card">
+<h2 style="margin-top:0">学习情况</h2>
+<div id="statsBody"></div>
+</div>
+</section>
+
 <section id="settingsTab" class="hidden">
 <div class="card">
 <h2>✨ AI</h2>
-<div class="small">填 Key 后，查词不完整时自动用 AI 补全词根、相关词和释义。Key 只存本机。</div>
-<div class="small" style="margin-top:6px">用 DeepSeek：在上方选「DeepSeek」，把你 DeepTutor 里用的同一个 Key 粘进来即可。在 Mac 上复制、iPhone 上粘贴（同一 Apple ID 可跨设备直接粘）。</div>
+<div class="small">填 Key 后，查词不完整时自动用 AI 补全。Key 只存本机。DeepSeek 可用你 DeepTutor 里同一个 Key：在 Mac 上复制、iPhone 上粘贴。</div>
 <div class="field"><label>服务商</label>
 <select id="aiPreset" style="width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:11px 12px;font-size:16px;background:#fff">
 <option value="">自定义</option>
@@ -806,16 +832,16 @@ function detailHtml(term, d, gid){
     ((d.senses && d.senses.length > 1) ? '<div class="small" style="margin-top:6px">' +
       d.senses.filter(s => s.def && s.def !== d.meaning).slice(0, 3).map(s =>
         escapeHtml(s.pos) + ' · ' + escapeHtml(s.def)).join('<br>') + '</div>' : '') +
-    ((d.contextWords && d.contextWords.length) ? '<div class="example" style="background:#fffbeb">📍 同批选词：' +
+    ((d.contextWords && d.contextWords.length) ? '<div class="example" style="background:#F3E9C8">📍 同批选词：' +
       d.contextWords.map(w => '<span class="tag" data-action="lookup-term" data-term="' + escapeHtml(w) + '">' + escapeHtml(w) + '</span>').join(' ') +
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>'
-    : (d.contextSentence ? '<div class="example" style="background:#fffbeb">📖 出处原句：' + escapeHtml(d.contextSentence) +
+    : (d.contextSentence ? '<div class="example" style="background:#F3E9C8">📖 出处原句：' + escapeHtml(d.contextSentence) +
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>' : '')) +
     (d.example ? '<div class="example">💬 ' + escapeHtml(d.example) +
       ' <button class="speakbtn" data-action="speak" data-text="' + escapeHtml(d.example) + '">🔊 朗读例句</button></div>' : '') +
-    (d.root ? '<h3>🌱 词根 / 构词</h3><div class="meaning">' + escapeHtml(d.root) + '</div>' : '') +
-    (famWords.length ? '<h3>🔗 相关词</h3><div class="tags">' + fam + '</div>' +
-    '<h3>🕸️ 词汇关系（点节点可查询）</h3><div id="' + gid + '" class="graph"></div>' : '') +
+    (d.root ? '<div class="meaning" style="margin-top:14px"><b>词根：</b>' + escapeHtml(d.root) + '</div>' : '') +
+    (famWords.length ? '<div style="margin-top:14px"><b>相关词：</b></div><div class="tags">' + fam + '</div>' +
+    '<div style="margin-top:14px"><b>词汇关系：</b></div><div id="' + gid + '" class="graph"></div>' : '') +
     '<div class="actions">' +
       '<button class="secondary" data-action="ai-deep" data-term="' + escapeHtml(term) + '">✨ AI 深挖</button>' +
     '</div>' +
@@ -1001,7 +1027,7 @@ function startReview(onlyTerm){
   if(!queue.length){
     switchTab("review");
     document.getElementById("session").innerHTML =
-      '<div class="card empty">今天没有到期的卡片 🎉<br><br>去查询新词，它们会自动变成闪卡。</div>';
+      '<div class="card empty">今天没有到期的卡片 🎉<div class="actions" style="justify-content:center"><button data-action="goto-search">去查新词</button></div></div>';
     return;
   }
   session = {queue: queue.slice(), total: queue.length, done: 0,
@@ -1079,12 +1105,12 @@ function renderCardBack(){
         escapeHtml(s.pos) + ' · ' + escapeHtml(s.def)).join('<br>') + '</div>' : '') +
     (d.example ? '<div class="example">💬 ' + escapeHtml(d.example) +
       ' <button class="speakbtn" data-action="speak" data-text="' + escapeHtml(d.example) + '">🔊</button></div>' : '') +
-    ((d.contextWords && d.contextWords.length && !/\s/.test(term)) ? '<div class="example" style="background:#fffbeb">📍 同批选词：' +
+    ((d.contextWords && d.contextWords.length && !/\s/.test(term)) ? '<div class="example" style="background:#F3E9C8">📍 同批选词：' +
       d.contextWords.map(w => '<span class="tag">' + escapeHtml(w) + '</span>').join(' ') +
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>'
-    : (d.contextSentence ? '<div class="example" style="background:#fffbeb">📖 出处原句：' + escapeHtml(d.contextSentence) +
+    : (d.contextSentence ? '<div class="example" style="background:#F3E9C8">📖 出处原句：' + escapeHtml(d.contextSentence) +
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>' : '')) +
-    (d.root ? '<div class="meaning" style="margin-top:10px">🌱 ' + escapeHtml(d.root) + '</div>' : '') +
+    (d.root ? '<div class="meaning" style="margin-top:10px"><b>词根：</b>' + escapeHtml(d.root) + '</div>' : '') +
     '<h3 style="margin-bottom:4px">你记得怎么样？</h3>' +
     '<div class="grades">' +
       gBtn("again","g-again","Again") + gBtn("hard","g-hard","Hard") +
@@ -1138,8 +1164,8 @@ function renderLibrary(){
   let head = "";
   const lastExp = +(localStorage.getItem("wordnest_last_export") || 0);
   if(allKeys.length >= 50 && Date.now() - lastExp > 30 * DAY){
-    head = '<div class="example" style="background:#fffbeb;margin-bottom:10px">💾 词库已有 ' + allKeys.length +
-      ' 个词，已超过一个月没备份。去「更多 → 设置」页底部点「导出词库 JSON」存一份，换手机或清缓存时不怕丢。</div>';
+    head = '<div class="example" style="background:#F3E9C8;margin-bottom:10px">💾 词库已有 ' + allKeys.length +
+      ' 个词，已超过一个月没备份。去「⭐ 菜单 → 设置 · AI」页底部点「导出词库 JSON」存一份，换手机或清缓存时不怕丢。</div>';
   }
   if(!allKeys.length){ el.innerHTML = head + '<div class="empty">还没有词。查询一个词就会自动加入。</div>'; return; }
   let keys = allKeys;
@@ -1407,6 +1433,8 @@ function closeCaptureTask(){
 }
 function setupCapture(container, tokens, kind){
   captureState = {container: container, tokens: tokens, splitSet: new Set(), kind: kind, trans: {}, source: ""};
+  const bd = document.getElementById("batchDone");
+  if(bd){ bd.classList.add("hidden"); bd.innerHTML = ""; }
   renderCapture();
 }
 function renderCapture(){
@@ -1431,7 +1459,7 @@ function renderCapture(){
     '<div style="margin-top:8px"><button class="secondary" data-action="cap-lookup-all">🔍 直接查这整段（当作一个词条）</button></div>' +
     '<div class="field"><label>来源（可选）</label><input id="capSource" placeholder="如：马太福音 5章" value="' + escapeHtml(st.source || "") + '"></div>' +
     '<div id="capGroups"></div>' +
-    '<div class="actions"><button data-action="cap-confirm" ' + (groups.length ? "" : "disabled") + '>🃏 直接做成闪卡（' + groups.length + '）</button></div>';
+    '<div class="actions"><button data-action="cap-confirm" ' + (groups.length ? "" : "disabled") + '>制作闪卡（' + groups.length + '）</button></div>';
   renderCapGroups();
   ensureCapTranslations();
 }
@@ -1492,6 +1520,38 @@ function startVoice(){
   try{ recognizer.start(); }catch(e){ toast("无法启动麦克风"); }
 }
 
+/* ================= 学习情况 & 分享 (star menu) ================= */
+function renderStats(){
+  const el = document.getElementById("statsBody"); if(!el) return;
+  const lib = loadLib(); const keys = Object.keys(lib);
+  const f = forecastCounts(lib);
+  const row = (k, v) => '<div class="item"><span>' + k + '</span><b>' + v + '</b></div>';
+  el.innerHTML =
+    row("词库总数", keys.length + " 词") +
+    row("今日待复习", f.today + " 张") +
+    row("明天", f.tomorrow + " 张") +
+    row("后天", f.day2 + " 张") +
+    row("学习中", learningTerms(lib).length + " 张") +
+    row("已复习过", keys.filter(t => (lib[t].reps || 0) > 0).length + " 张") +
+    row("已掌握（间隔 ≥ 21 天）", keys.filter(t => (lib[t].intervalDays || 0) >= 21).length + " 张");
+}
+async function shareLibrary(){
+  const lib = loadLib(); const n = Object.keys(lib).length;
+  const json = JSON.stringify(lib, null, 1);
+  try{
+    const file = new File([json], "wordnest-library.json", {type: "application/json"});
+    if(navigator.canShare && navigator.canShare({files: [file]})){
+      await navigator.share({files: [file], title: "WordNest 词库"}); return;
+    }
+    if(navigator.share){
+      await navigator.share({title: "WordNest 词库", text: "我的 WordNest 词库：" + n + " 个词"}); return;
+    }
+  }catch(e){ return; }
+  const blob = new Blob([json], {type: "application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "wordnest-library.json"; a.click();
+}
+
 function healEmptyCards(){
   /* Cards whose background enrichment failed (offline, quota, or a
      foreign word like "himmel") sit in the library with no meaning.
@@ -1527,8 +1587,8 @@ function healEmptyCards(){
 function switchTab(name){
   document.querySelectorAll("nav button").forEach(x => x.classList.toggle("active", x.dataset.tab === name));
   const nm = document.getElementById("navMore");
-  if(nm) nm.classList.toggle("active", name === "library" || name === "settings");
-  ["search","review","library","settings"].forEach(id =>
+  if(nm) nm.classList.toggle("active", name === "library" || name === "settings" || name === "stats");
+  ["search","review","library","settings","stats"].forEach(id =>
     document.getElementById(id + "Tab").classList.toggle("hidden", id !== name));
   const cpX = document.getElementById("capturePanel");
   if(cpX){
@@ -1538,6 +1598,7 @@ function switchTab(name){
   const opX = document.getElementById("ocrPanel");
   if(opX && name !== "search") opX.classList.add("hidden");
   if(name === "library") renderLibrary();
+  if(name === "stats") renderStats();
   if(name === "review" && !session){
     const libR = loadLib();
     const q2 = reviewQueueTerms(libR);
@@ -1549,7 +1610,7 @@ function switchTab(name){
       nextCard();
     }else{
       document.getElementById("session").innerHTML =
-        '<div class="card empty">今天没有待复习的卡片 🎉</div>';
+        '<div class="card empty">今天没有待复习的卡片 🎉<div class="actions" style="justify-content:center"><button data-action="goto-search">去查新词</button></div></div>';
     }
   }
 }
@@ -1583,6 +1644,10 @@ document.addEventListener("click", e => {
     }
   }
   else if(a === "goto-search") switchTab("search");
+  else if(a === "dismiss-batch"){
+    const bd = document.getElementById("batchDone");
+    if(bd){ bd.classList.add("hidden"); bd.innerHTML = ""; }
+  }
   else if(a === "lookup-term"){
     const t = el.dataset.term;
     if(t){ document.getElementById("q").value = t; switchTab("search"); search(t); }
@@ -1638,7 +1703,15 @@ document.addEventListener("click", e => {
       saveLib(lib);
       window.__lastBatch = terms;
       closeCaptureTask();
-      toast("✅ 已生成 " + terms.length + " 张闪卡，已加入复习");
+      const bd = document.getElementById("batchDone");
+      if(bd){
+        bd.classList.remove("hidden");
+        bd.innerHTML = '<div class="donecard"><div style="font-size:17px;font-weight:800">✓ 已生成 ' + terms.length + ' 张闪卡</div>' +
+          '<div style="margin-top:4px">已加入复习队列 <span id="enrichProg">（补全释义 0/' + terms.length + '）</span></div>' +
+          '<div class="actions"><button data-action="start-review">开始复习</button>' +
+          '<button class="secondary" data-action="dismiss-batch">完成</button></div></div>';
+        scrollToEl(bd);
+      }
       refreshAll();
       (async () => {
         let done = 0;
@@ -1691,7 +1764,11 @@ document.querySelectorAll("nav button[data-tab]").forEach(b =>
 document.getElementById("navMore").addEventListener("click", ()=>
   document.getElementById("moreMenu").classList.toggle("hidden"));
 document.querySelectorAll("#moreMenu button").forEach(b =>
-  b.addEventListener("click", ()=>{ document.getElementById("moreMenu").classList.add("hidden"); switchTab(b.dataset.menu); }));
+  b.addEventListener("click", ()=>{
+    document.getElementById("moreMenu").classList.add("hidden");
+    if(b.dataset.menu === "share"){ shareLibrary(); return; }
+    switchTab(b.dataset.menu);
+  }));
 document.getElementById("searchBtn").addEventListener("click", ()=> search());
 document.getElementById("q").addEventListener("keydown", e => { if(e.key === "Enter") search(); });
 document.getElementById("q").addEventListener("input", e => { e.target.classList.remove("searched"); });
@@ -1701,8 +1778,16 @@ document.getElementById("photoBtn").addEventListener("click", ()=>{
   if(img && img.naturalWidth){
     document.getElementById("ocrPanel").classList.remove("hidden");
     layoutCropBox(); scrollToEl(document.getElementById("ocrPanel"));
-  }else document.getElementById("photoInput").click();
+  }else document.getElementById("srcPop").classList.toggle("hidden");
 });
+document.querySelectorAll("#srcPop button").forEach(b =>
+  b.addEventListener("click", ()=>{
+    document.getElementById("srcPop").classList.add("hidden");
+    const inp = document.getElementById("photoInput");
+    if(b.dataset.src === "camera") inp.setAttribute("capture", "environment");
+    else inp.removeAttribute("capture");
+    inp.click();
+  }));
 document.getElementById("photoInput").addEventListener("change", e => {
   const f = e.target.files && e.target.files[0]; if(!f) return;
   const url = URL.createObjectURL(f);
@@ -1759,6 +1844,11 @@ document.getElementById("exportBtn").addEventListener("click", ()=>{
   if(asEl){ asEl.checked = autoSpeakOn();
     asEl.addEventListener("change", ()=>{ try{ localStorage.setItem("wordnest_autospeak", asEl.checked ? "1" : "0"); }catch(e){} }); }
   initCropDrag();
+  setTimeout(()=>{
+    const sp = document.getElementById("splash");
+    if(sp){ sp.style.opacity = "0"; sp.style.pointerEvents = "none";
+      setTimeout(()=>{ sp.style.display = "none"; }, 500); }
+  }, 650);
   refreshAll();
   renderHistory();
   document.addEventListener("pointerdown", function prime(){
