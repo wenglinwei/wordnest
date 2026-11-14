@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<title>WordNest V3.6 — English Learning</title>
+<title>WordNest V3.6.1 — English Learning</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#fff;color:#111;font-family:'Space Mono','Sarasa Mono SC',ui-monospace,'SF Mono',Menlo,'PingFang SC','Helvetica Neue',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
@@ -163,6 +163,29 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 </div>
 <div id="searchHistory" class="hidden"><div class="histlbl">最近查询（点一下再看）</div><div class="chips" id="historyChips" style="margin-top:6px"></div></div>
 <input type="file" id="photoInput" accept="image/*" class="hidden">
+<nav>
+<button class="active" data-tab="search" title="搜索" aria-label="搜索"><span class="ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5L16.7 16.7"/></svg></span></button>
+<button id="photoBtn" type="button" data-tab="capture" title="拍照收词" aria-label="拍照收词"><span class="ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z"/><circle cx="12" cy="13.5" r="3.6"/></svg></span></button>
+<button data-tab="review" title="闪卡复习" aria-label="闪卡复习"><span class="ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3.5l2.5 5.3 5.8.7-4.3 4 1.1 5.7L12 16.4l-5.1 2.8L8 13.5 3.7 9.5l5.8-.7z"/></svg><span class="badge hidden" id="dueBadge">0</span></span></button>
+</nav>
+
+<section id="searchTab">
+<div class="lastrow">
+<span id="lastLabel" class="lastlabel hidden">上次查的词</span>
+<span style="flex:1"></span>
+<button id="navMore" class="gearbtn" type="button" title="菜单" aria-label="菜单"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="6.2"/><circle cx="12" cy="12" r="2.6"/><path d="M12 3.4v2.4M12 18.2v2.4M3.4 12h2.4M18.2 12h2.4M5.9 5.9l1.7 1.7M16.4 16.4l1.7 1.7M18.1 5.9l-1.7 1.7M7.6 16.4l-1.7 1.7"/></svg></button>
+<div id="moreMenu" class="hidden">
+<button data-menu="library">闪卡列表</button>
+<button data-menu="share">分享</button>
+<button data-menu="stats">学习情况</button>
+<button data-menu="settings">设置 · AI</button>
+</div>
+</div>
+<div id="dash"></div>
+<div id="result" class="empty">试试 <b>hello</b>、<b>improve</b>、<b>figure out</b><br><span class="small">支持中文输入，如「承担」；粘贴整段英文可点选生词</span></div>
+</section>
+
+<section id="captureTab" class="hidden">
 <div id="srcPop" class="hidden">
 <button data-src="camera" type="button">拍照</button>
 <button data-src="library" type="button">照片图库</button>
@@ -187,28 +210,7 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 <h2 style="margin-top:0">点选生词</h2>
 <div id="captureArea"></div>
 </section>
-
-<nav>
-<button class="active" data-tab="search" title="搜索" aria-label="搜索"><span class="ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5L16.7 16.7"/></svg></span></button>
-<button id="photoBtn" type="button" title="拍照收词" aria-label="拍照收词"><span class="ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z"/><circle cx="12" cy="13.5" r="3.6"/></svg></span></button>
-<button data-tab="review" title="闪卡复习" aria-label="闪卡复习"><span class="ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3.5l2.5 5.3 5.8.7-4.3 4 1.1 5.7L12 16.4l-5.1 2.8L8 13.5 3.7 9.5l5.8-.7z"/></svg><span class="badge hidden" id="dueBadge">0</span></span></button>
-</nav>
-
-<section id="searchTab">
-<div class="lastrow">
-<span id="lastLabel" class="lastlabel hidden">上次查的词</span>
-<span style="flex:1"></span>
-<button id="navMore" class="gearbtn" type="button" title="菜单" aria-label="菜单"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="6.2"/><circle cx="12" cy="12" r="2.6"/><path d="M12 3.4v2.4M12 18.2v2.4M3.4 12h2.4M18.2 12h2.4M5.9 5.9l1.7 1.7M16.4 16.4l1.7 1.7M18.1 5.9l-1.7 1.7M7.6 16.4l-1.7 1.7"/></svg></button>
-<div id="moreMenu" class="hidden">
-<button data-menu="library">闪卡列表</button>
-<button data-menu="share">分享</button>
-<button data-menu="stats">学习情况</button>
-<button data-menu="settings">设置 · AI</button>
-</div>
-</div>
-<div id="dash"></div>
 <div id="batchDone" class="hidden"></div>
-<div id="result" class="empty">试试 <b>hello</b>、<b>improve</b>、<b>figure out</b><br><span class="small">支持中文输入，如「承担」；粘贴整段英文可点选生词</span></div>
 </section>
 
 <section id="reviewTab" class="hidden">
@@ -261,7 +263,7 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 </div>
 </section>
 
-<footer>WordNest V3.6 · 数据存本机</footer>
+<footer>WordNest V3.6.1 · 数据存本机</footer>
 </div>
 
 <div id="toast" class="toast"></div>
@@ -934,6 +936,7 @@ async function search(termArg){
       const cp = document.getElementById("capturePanel");
       cp.classList.remove("hidden");
       setupCapture(document.getElementById("captureArea"), toks, "paste");
+      switchTab("capture");
       scrollToEl(cp);
       return;
     }
@@ -1808,15 +1811,8 @@ function switchTab(name){
   document.querySelectorAll("nav button").forEach(x => x.classList.toggle("active", x.dataset.tab === name));
   const nm = document.getElementById("navMore");
   if(nm) nm.classList.toggle("active", name === "library" || name === "settings" || name === "stats");
-  ["search","review","library","settings","stats"].forEach(id =>
+  ["search","capture","review","library","settings","stats"].forEach(id =>
     document.getElementById(id + "Tab").classList.toggle("hidden", id !== name));
-  const cpX = document.getElementById("capturePanel");
-  if(cpX){
-    if(name === "search" && captureState && captureState.kind === "paste") cpX.classList.remove("hidden");
-    else if(name !== "search") cpX.classList.add("hidden");
-  }
-  const opX = document.getElementById("ocrPanel");
-  if(opX && name !== "search") opX.classList.add("hidden");
   if(name === "library") renderLibrary();
   if(name === "stats") renderStats();
   if(name === "review" && !session){
@@ -2019,11 +2015,20 @@ document.getElementById("q").addEventListener("keydown", e => { if(e.key === "En
 document.getElementById("q").addEventListener("input", e => { e.target.classList.remove("searched"); });
 document.getElementById("micBtn").addEventListener("click", startVoice);
 document.getElementById("photoBtn").addEventListener("click", ()=>{
+  switchTab("capture");
+  const cp = document.getElementById("capturePanel");
+  const bd = document.getElementById("batchDone");
+  if(captureState && cp && !cp.classList.contains("hidden")) return; /* capture in progress: keep it */
+  if(bd && !bd.classList.contains("hidden") && bd.innerHTML) return; /* completion card showing */
   const img = document.getElementById("cropImg");
   if(img && img.naturalWidth){
+    document.getElementById("srcPop").classList.add("hidden");
     document.getElementById("ocrPanel").classList.remove("hidden");
     layoutCropBox(); scrollToEl(document.getElementById("ocrPanel"));
-  }else document.getElementById("srcPop").classList.toggle("hidden");
+  }else{
+    document.getElementById("ocrPanel").classList.add("hidden");
+    document.getElementById("srcPop").classList.remove("hidden");
+  }
 });
 document.querySelectorAll("#srcPop button").forEach(b =>
   b.addEventListener("click", ()=>{
