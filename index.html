@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<title>WordNest V3.6.3 — English Learning</title>
+<title>WordNest V3.6.4 — English Learning</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#fff;color:#111;font-family:'Space Mono','Sarasa Mono SC',ui-monospace,'SF Mono',Menlo,'PingFang SC','Helvetica Neue',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
@@ -145,7 +145,8 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 .dash .dover{color:#fff;font-weight:700;font-size:13px;text-decoration:underline}
 .dash button{background:#fff;color:#111;margin-top:12px;font-size:16px}
 #splash{position:fixed;inset:0;background:#fff;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;transition:opacity .45s ease}
-#srcPop{background:#fff;border:1px solid #e3e3e3;border-radius:18px;margin-top:10px;overflow:hidden;box-shadow:0 12px 32px rgba(0,0,0,.10)}
+#sheetMask{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:70}
+#srcPop{position:fixed;left:0;right:0;bottom:0;z-index:71;background:#fff;border-top:1px solid #e3e3e3;border-radius:18px 18px 0 0;overflow:hidden;box-shadow:0 -10px 32px rgba(0,0,0,.18);padding-bottom:env(safe-area-inset-bottom)}
 #srcPop button{display:block;width:100%;background:#fff;color:#111;font-weight:400;font-size:15.5px;text-align:center;padding:16px 0;border:none;border-bottom:1px solid #f0f0f0;border-radius:0;cursor:pointer}
 #srcPop button:last-child{border-bottom:none}
 #srcPop button:active{background:#f5f5f5}
@@ -185,10 +186,12 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 </section>
 
 <section id="captureTab" class="hidden">
+<div id="sheetMask" class="hidden"></div>
 <div id="srcPop" class="hidden">
 <button data-src="camera" type="button">拍照</button>
 <button data-src="library" type="button">照片图库</button>
 <button data-src="file" type="button">取文件</button>
+<button data-src="cancel" type="button">取消</button>
 </div>
 
 <section id="ocrPanel" class="card hidden">
@@ -262,7 +265,7 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 </div>
 </section>
 
-<footer>WordNest V3.6.3 · 数据存本机</footer>
+<footer>WordNest V3.6.4 · 数据存本机</footer>
 </div>
 
 <div id="toast" class="toast"></div>
@@ -1731,6 +1734,16 @@ function clozeOf(sent, term){
   return { html: escapeHtml(sent.slice(0, idx)) + '<span class="blank">&nbsp;</span>' + escapeHtml(sent.slice(idx + len)),
            target: sent.slice(idx, idx + len) };
 }
+function gradeRowHtml(card){
+  const gb = (grade, label) => {
+    const p = srsCalc(card, grade);
+    return '<button data-action="grade" data-grade="' + grade + '">' + label +
+      '<span class="iv">' + p.label + '</span></button>';
+  };
+  return '<div class="small" style="margin-top:16px">练完了，给这张卡评分</div>' +
+    '<div class="grades" style="margin-top:8px">' +
+    gb("again","重来") + gb("hard","困难") + gb("good","良好") + gb("easy","简单") + '</div>';
+}
 function openMode(kind){
   if(!session || !session.current) return;
   if(modeState && modeState.kind === kind){ closeMode(); return; }
@@ -1753,7 +1766,7 @@ function openMode(kind){
       '<div class="recstat" id="recScore" style="color:#111;font-weight:700"></div>' +
       '<div class="faces hidden" id="faceRow"><span style="font-size:13px;font-weight:700">自评</span>' +
       FACE_SVGS.map((f, i) => '<button class="face" data-action="mode-face" data-i="' + i + '" aria-label="' + f[0] + '">' + f[1] + '</button>').join("") +
-      '</div></div>';
+      '</div>' + gradeRowHtml(card) + '</div>';
   }else{
     let cz;
     if(sent === term && !/\s/.test(term)){
@@ -1769,7 +1782,7 @@ function openMode(kind){
         '<div style="display:flex;gap:9px;margin-top:14px;align-items:center">' +
         '<button class="pillbtn ghost" data-action="mode-clear">清除</button>' +
         '<button class="pillbtn" data-action="mode-check">核对</button>' +
-        '<span class="cloze-ans" id="clozeAns"></span></div>'
+        '<span class="cloze-ans" id="clozeAns"></span></div>' + gradeRowHtml(card)
       : '<div class="meaning">这张卡的例句里没有出现卡面词，挖空暂不可用。</div>') +
       '</div>';
     if(cz) initPad();
@@ -2045,6 +2058,15 @@ document.getElementById("q").addEventListener("focus", ()=>{ histWanted = true; 
 document.getElementById("q").addEventListener("blur", ()=>{ setTimeout(()=>{ histWanted = false; renderHistory(); }, 250); });
 document.getElementById("q").addEventListener("input", e => { e.target.classList.remove("searched"); });
 document.getElementById("micBtn").addEventListener("click", startVoice);
+function showSrcPop(){
+  document.getElementById("srcPop").classList.remove("hidden");
+  document.getElementById("sheetMask").classList.remove("hidden");
+}
+function hideSrcPop(){
+  document.getElementById("srcPop").classList.add("hidden");
+  document.getElementById("sheetMask").classList.add("hidden");
+}
+document.getElementById("sheetMask").addEventListener("click", hideSrcPop);
 document.getElementById("photoBtn").addEventListener("click", ()=>{
   switchTab("capture");
   const cp = document.getElementById("capturePanel");
@@ -2053,17 +2075,18 @@ document.getElementById("photoBtn").addEventListener("click", ()=>{
   if(bd && !bd.classList.contains("hidden") && bd.innerHTML) return; /* completion card showing */
   const img = document.getElementById("cropImg");
   if(img && img.naturalWidth){
-    document.getElementById("srcPop").classList.add("hidden");
+    hideSrcPop();
     document.getElementById("ocrPanel").classList.remove("hidden");
     layoutCropBox(); scrollToEl(document.getElementById("ocrPanel"));
   }else{
     document.getElementById("ocrPanel").classList.add("hidden");
-    document.getElementById("srcPop").classList.remove("hidden");
+    showSrcPop();
   }
 });
 document.querySelectorAll("#srcPop button").forEach(b =>
   b.addEventListener("click", ()=>{
-    document.getElementById("srcPop").classList.add("hidden");
+    hideSrcPop();
+    if(b.dataset.src === "cancel") return;
     const inp = document.getElementById("photoInput");
     if(b.dataset.src === "camera") inp.setAttribute("capture", "environment");
     else inp.removeAttribute("capture");
