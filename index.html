@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<title>WordNest V3.6.1 — English Learning</title>
+<title>WordNest V3.6.2 — English Learning</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#fff;color:#111;font-family:'Space Mono','Sarasa Mono SC',ui-monospace,'SF Mono',Menlo,'PingFang SC','Helvetica Neue',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
@@ -69,7 +69,7 @@ footer{text-align:center;color:#9a9a9a;font-size:12px;margin-top:25px;line-heigh
 .stat .lbl{font-size:12px;color:#8a8a8a;margin-top:2px}
 .iconbtn{flex:0 0 auto;width:42px;height:42px;border-radius:50%;padding:0;font-size:19px;background:transparent;color:#111}
 .iconbtn:active{background:#e6e6e6}
-.speakbtn{background:#fff;border:1.5px solid #111;color:#111;border-radius:999px;min-width:32px;height:32px;padding:0 9px;font-size:14px;vertical-align:middle;margin-left:8px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.speakbtn{background:#fff;border:1.5px solid #111;color:#111;border-radius:50%;width:32px;height:32px;padding:0;font-size:14px;vertical-align:middle;margin-left:8px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
 .speakbtn:active{background:#111;color:#fff}
 .tools{display:flex;gap:8px;margin-top:10px}
 .tools button{flex:1}
@@ -263,7 +263,7 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 </div>
 </section>
 
-<footer>WordNest V3.6.1 · 数据存本机</footer>
+<footer>WordNest V3.6.2 · 数据存本机</footer>
 </div>
 
 <div id="toast" class="toast"></div>
@@ -805,7 +805,7 @@ async function fetchOnline(term){
   const zh = /\s/.test(term) ? await translateText(term, "en", "zh-CN")
     : await translateWord(term, detail.pos || "");
   if(zh){ detail.zh = detail.zh || zh; }
-  delete detail.synonyms;
+  detail.synonyms = (detail.synonyms || []).filter(x => x && !hasCJK(x)).slice(0, 8);
   return (detail.meaning || detail.zh || (detail.family && detail.family.length)) ? detail : null;
 }
 function detailIncomplete(d){
@@ -851,9 +851,10 @@ async function aiLookup(term){
 }
 
 /* ================= Search & result ================= */
+const SPEAK_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"/><path d="M16.5 8.5a5 5 0 010 7"/></svg>';
 function speakBtn(text, audio){
   return '<button class="speakbtn" data-action="speak" data-text="' + escapeHtml(text) +
-    '" data-audio="' + escapeHtml(audio||"") + '" title="发音">🔊</button>';
+    '" data-audio="' + escapeHtml(audio||"") + '" title="发音" aria-label="发音">' + SPEAK_SVG + '</button>';
 }
 function glossedFamily(d){
   const g = (d && d.familyGloss) || {};
@@ -865,6 +866,15 @@ function detailHtml(term, d, gid){
   const fam = famWords.map(x =>
     '<span class="tag" data-action="lookup" data-term="' + escapeHtml(x) + '">' + escapeHtml(x) +
     '<span class="gl"> · ' + escapeHtml(gloss[x]) + '</span></span>').join("");
+  const singleW = !/\s/.test(term);
+  const lemmaW = String(d.lemma || term).toLowerCase();
+  let morphText = singleW ? morphExplain(lemmaW) : "";
+  let etymText = ETYM[String(term).toLowerCase()] || ETYM[lemmaW] || "";
+  const rootStr = d.root || "";
+  if(rootStr && rootStr !== morphText && !etymText) etymText = rootStr;
+  if(!morphText && !etymText && rootStr) morphText = rootStr;
+  if(etymText && etymText === morphText) etymText = "";
+  const syns = (d.synonyms || []).filter(x => x && !hasCJK(x) && x.toLowerCase() !== String(term).toLowerCase()).slice(0, 8);
   return '<div class="detail">' +
     '<div><span class="word">' + escapeHtml(term) + '</span></div>' +
     '<div style="display:flex;align-items:center;margin-top:2px">' +
@@ -881,10 +891,12 @@ function detailHtml(term, d, gid){
     : (d.contextSentence ? '<div class="example">出处原句：' + escapeHtml(d.contextSentence) +
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>' : '')) +
     (d.example ? '<h3 class="sec" style="margin-top:24px">例句</h3><div class="example" style="margin-top:0">' + escapeHtml(d.example) +
-      ' <button class="speakbtn" data-action="speak" data-text="' + escapeHtml(d.example) + '">🔊 朗读例句</button></div>' : '') +
-    (d.root ? '<div class="meaning" style="margin-top:16px"><b>词根：</b>' + escapeHtml(d.root) + '</div>' : '') +
-    (famWords.length ? '<h3 class="sec" style="margin-top:24px">相关词</h3><div class="tags" style="margin-top:0">' + fam + '</div>' +
-    '<h3 class="sec" style="margin-top:24px">词汇关系</h3><div id="' + gid + '" class="graph" style="margin-top:0"></div>' : '') +
+      ' <button class="speakbtn" data-action="speak" data-text="' + escapeHtml(d.example) + '" aria-label="朗读例句">' + SPEAK_SVG + '</button>' +
+      (d.exampleZh ? '<div class="small" style="margin-top:6px">' + escapeHtml(d.exampleZh) + '</div>' : '') + '</div>' : '') +
+    (famWords.length ? '<h3 class="sec" style="margin-top:24px">相关词</h3><div class="tags" style="margin-top:0">' + fam + '</div>' : '') +
+    (morphText ? '<div class="meaning" style="margin-top:16px"><b>词根：</b>' + escapeHtml(morphText) + '</div>' : '') +
+    (syns.length ? '<div class="meaning" style="margin-top:14px"><b>同近义词：</b>' + syns.map(escapeHtml).join('、') + '</div>' : '') +
+    (etymText ? '<div class="meaning" style="margin-top:14px"><b>词源：</b>' + escapeHtml(etymText) + '</div>' : '') +
     '<div class="small" style="margin-top:16px">✓ 已自动存入词库，会进入复习队列</div>' +
     '<div class="actions">' +
       '<button data-action="ai-deep" data-term="' + escapeHtml(term) + '">AI 深挖</button>' +
@@ -897,7 +909,6 @@ function renderResult(term, d){
   const el = document.getElementById("result");
   el.dataset.term = term;
   el.innerHTML = detailHtml(term, d, "graphMain");
-  drawGraph(document.getElementById("graphMain"), term, glossedFamily(d), d.familyGloss || {});
   enrichFamilyGloss(term, d);
 }
 async function glossFor(word){
@@ -922,7 +933,6 @@ async function enrichFamilyGloss(term, d){
   const el = document.getElementById("result");
   if(el && el.dataset.term === term){
     el.innerHTML = detailHtml(term, card.detail, "graphMain");
-    drawGraph(document.getElementById("graphMain"), term, glossedFamily(card.detail), gloss);
   }
 }
 async function search(termArg){
@@ -1134,7 +1144,7 @@ function renderCardFront(){
     (sent ? '<div class="sent">' + sentHtml(sent, term) + '</div>' : '') +
     '<div class="fc"><div class="fcword">' + escapeHtml(term) + '</div>' +
     (d.phonetic ? '<div class="phonetic">' + escapeHtml(sanitizePhonetic(d.phonetic)) + '</div>' : '') +
-    '<div class="hint">🔊 点卡片听发音</div></div></div>' +
+    '<div class="hint">点卡片听发音</div></div></div>' +
     '<button class="flipbtn" data-action="show-answer">看释义</button>' +
     '<div class="modes"><button class="modebtn" data-action="mode-speak">跟读</button>' +
     '<button class="modebtn" data-action="mode-cloze">挖空手写</button></div>' +
@@ -1161,7 +1171,7 @@ function renderCardBack(){
       d.senses.filter(s => s.def && s.def !== d.meaning).slice(0, 3).map(s =>
         escapeHtml(s.pos) + ' · ' + escapeHtml(s.def)).join('<br>') + '</div>' : '') +
     (d.example ? '<div class="example">' + escapeHtml(d.example) +
-      ' <button class="speakbtn" data-action="speak" data-text="' + escapeHtml(d.example) + '">🔊</button></div>' : '') +
+      ' <button class="speakbtn" data-action="speak" data-text="' + escapeHtml(d.example) + '" aria-label="朗读例句">' + SPEAK_SVG + '</button></div>' : '') +
     ((d.contextWords && d.contextWords.length && !/\s/.test(term)) ? '<div class="example">同批选词：' +
       d.contextWords.map(w => '<span class="tag">' + escapeHtml(w) + '</span>').join(' ') +
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>'
@@ -1244,7 +1254,7 @@ function renderLibrary(){
       (cardReviewable(c) ? '' : '<div class="small" style="color:#b45309">暂无释义 · 不进复习，点「看」重试</div>') +
       '</div>' +
       '<div style="display:flex;gap:6px">' +
-      '<button class="secondary" data-action="speak" data-text="' + escapeHtml(k) + '">🔊</button>' +
+      '<button class="secondary" data-action="speak" data-text="' + escapeHtml(k) + '" aria-label="发音">' + SPEAK_SVG + '</button>' +
       '<button class="secondary" data-action="lookup" data-term="' + escapeHtml(k) + '">看</button>' +
       '<button class="secondary" data-action="remove" data-term="' + escapeHtml(k) + '">删除</button></div></div>';
   }).join("");
