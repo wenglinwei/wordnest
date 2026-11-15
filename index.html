@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<title>WordNest V3.6.4 — English Learning</title>
+<title>WordNest V3.6.5 — English Learning</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#fff;color:#111;font-family:'Space Mono','Sarasa Mono SC',ui-monospace,'SF Mono',Menlo,'PingFang SC','Helvetica Neue',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
@@ -219,6 +219,7 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 <div id="daybar"></div>
 <div id="session"></div>
 <div id="modePanel"></div>
+<div id="gradeBar"></div>
 </section>
 
 <section id="libraryTab" class="hidden">
@@ -265,7 +266,7 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 </div>
 </section>
 
-<footer>WordNest V3.6.4 · 数据存本机</footer>
+<footer>WordNest V3.6.5 · 数据存本机</footer>
 </div>
 
 <div id="toast" class="toast"></div>
@@ -943,10 +944,10 @@ async function search(termArg){
     term = norm(en);
     toast("按英文词查询：" + term);
   }
-  document.getElementById("q").value = term;
+  const qEl = document.getElementById("q");
+  qEl.value = term; qEl.classList.add("searched");
   const ll = document.getElementById("lastLabel"); if(ll) ll.classList.add("hidden");
   noteSearched(term);
-  document.getElementById("q").value = "";
   switchTab("search");
   const lib = loadLib();
   const card = ensureCard(lib, term);
@@ -1097,7 +1098,7 @@ function nextCard(){
       '<button class="secondary" data-action="goto-search">去查新词</button>' +
       (undoState && undoState.sessionRef === session ? '<button class="secondary" data-action="undo-grade">↩ 撤销上一张评分</button>' : '') +
       '</div></div>';
-    session = null; refreshAll(); return;
+    session = null; renderGradeBar(); refreshAll(); return;
   }
   session.current = session.queue.shift();
   session.showing = false;
@@ -1119,6 +1120,20 @@ function sentHtml(sent, term){
   if(idx < 0) return escapeHtml(sent);
   return escapeHtml(sent.slice(0, idx)) + '<span class="senthl">' + escapeHtml(sent.slice(idx, idx + term.length)) + '</span>' + escapeHtml(sent.slice(idx + term.length));
 }
+function renderGradeBar(){
+  const bar = document.getElementById("gradeBar");
+  if(!bar) return;
+  if(!session || !session.current){ bar.innerHTML = ""; return; }
+  const lib = loadLib(); const card = lib[session.current];
+  if(!card){ bar.innerHTML = ""; return; }
+  const gb = (grade, label) => {
+    const p = srsCalc(card, grade);
+    return '<button data-action="grade" data-grade="' + grade + '">' + label +
+      '<span class="iv">' + p.label + '</span></button>';
+  };
+  bar.innerHTML = '<div class="grades">' +
+    gb("again","重来") + gb("hard","困难") + gb("good","良好") + gb("easy","简单") + '</div>';
+}
 function renderCardFront(){
   const term = session.current;
   const lib = loadLib(); const card = lib[term] || {};
@@ -1135,17 +1150,13 @@ function renderCardFront(){
     '<div class="modes"><button class="modebtn" data-action="mode-speak">跟读</button>' +
     '<button class="modebtn" data-action="mode-cloze">挖空手写</button></div>' +
     (undoState && undoState.sessionRef === session ? '<div class="actions"><button class="secondary" data-action="undo-grade">↩ 撤销上一张评分</button></div>' : '');
+  renderGradeBar();
   if(autoSpeakOn()){ try{ speak(term, d.audio); }catch(e){} }
 }
 function renderCardBack(){
   const term = session.current;
   const lib = loadLib(); const card = lib[term] || newCard(term);
   const d = card.detail || findLocal(term) || {zh:"", meaning:"（暂无释义，可在查询页用 AI 深挖补充）", example:"", family:[], root:""};
-  const gBtn = (grade, label) => {
-    const p = srsCalc(card, grade);
-    return '<button data-action="grade" data-grade="' + grade + '">' + label +
-      '<span class="iv">' + p.label + '</span></button>';
-  };
   document.getElementById("session").innerHTML =
     '<div class="card revcard">' + progressHtml() +
     '<div><span class="word" style="font-size:26px">' + escapeHtml(term) + '</span>' + speakBtn(term, d.audio) +
@@ -1166,10 +1177,8 @@ function renderCardBack(){
     (d.root ? '<div class="meaning" style="margin-top:10px"><b>词根：</b>' + escapeHtml(d.root) + '</div>' : '') +
     '<div class="modes"><button class="modebtn" data-action="mode-speak">跟读</button>' +
     '<button class="modebtn" data-action="mode-cloze">挖空手写</button></div>' +
-    '<div class="grades">' +
-      gBtn("again","重来") + gBtn("hard","困难") +
-      gBtn("good","良好") + gBtn("easy","简单") +
-    '</div></div>';
+    '</div>';
+  renderGradeBar();
 }
 function gradeCurrent(grade){
   if(!session || !session.current) return;
@@ -1734,16 +1743,6 @@ function clozeOf(sent, term){
   return { html: escapeHtml(sent.slice(0, idx)) + '<span class="blank">&nbsp;</span>' + escapeHtml(sent.slice(idx + len)),
            target: sent.slice(idx, idx + len) };
 }
-function gradeRowHtml(card){
-  const gb = (grade, label) => {
-    const p = srsCalc(card, grade);
-    return '<button data-action="grade" data-grade="' + grade + '">' + label +
-      '<span class="iv">' + p.label + '</span></button>';
-  };
-  return '<div class="small" style="margin-top:16px">练完了，给这张卡评分</div>' +
-    '<div class="grades" style="margin-top:8px">' +
-    gb("again","重来") + gb("hard","困难") + gb("good","良好") + gb("easy","简单") + '</div>';
-}
 function openMode(kind){
   if(!session || !session.current) return;
   if(modeState && modeState.kind === kind){ closeMode(); return; }
@@ -1766,7 +1765,7 @@ function openMode(kind){
       '<div class="recstat" id="recScore" style="color:#111;font-weight:700"></div>' +
       '<div class="faces hidden" id="faceRow"><span style="font-size:13px;font-weight:700">自评</span>' +
       FACE_SVGS.map((f, i) => '<button class="face" data-action="mode-face" data-i="' + i + '" aria-label="' + f[0] + '">' + f[1] + '</button>').join("") +
-      '</div>' + gradeRowHtml(card) + '</div>';
+      '</div></div>';
   }else{
     let cz;
     if(sent === term && !/\s/.test(term)){
@@ -1782,7 +1781,7 @@ function openMode(kind){
         '<div style="display:flex;gap:9px;margin-top:14px;align-items:center">' +
         '<button class="pillbtn ghost" data-action="mode-clear">清除</button>' +
         '<button class="pillbtn" data-action="mode-check">核对</button>' +
-        '<span class="cloze-ans" id="clozeAns"></span></div>' + gradeRowHtml(card)
+        '<span class="cloze-ans" id="clozeAns"></span></div>' 
       : '<div class="meaning">这张卡的例句里没有出现卡面词，挖空暂不可用。</div>') +
       '</div>';
     if(cz) initPad();
@@ -1869,6 +1868,7 @@ function switchTab(name){
     }else{
       document.getElementById("session").innerHTML =
         '<div class="card empty">今天没有待复习的卡片 🎉<div class="actions" style="justify-content:center"><button data-action="goto-search">去查新词</button></div></div>';
+      renderGradeBar();
     }
   }
 }
@@ -2113,8 +2113,17 @@ document.getElementById("aiPreset").addEventListener("change", e => {
   const p = AI_PRESETS[e.target.value];
   if(p){ document.getElementById("aiBase").value = p.base; document.getElementById("aiModel").value = p.model; }
 });
-document.getElementById("ocrCancelBtn").addEventListener("click", ()=>
-  document.getElementById("ocrPanel").classList.add("hidden"));
+document.getElementById("ocrCancelBtn").addEventListener("click", ()=>{
+  document.getElementById("ocrPanel").classList.add("hidden");
+  /* full reset so the next tap on the camera tab can shoot again:
+     clear the picked file (same file must re-fire change) and the loaded photo */
+  document.getElementById("photoInput").value = "";
+  const cimg = document.getElementById("cropImg");
+  if(cimg) cimg.removeAttribute("src");
+  document.getElementById("ocrResult").innerHTML = "";
+  document.getElementById("ocrStatus").textContent = "";
+  showSrcPop();
+});
 document.getElementById("aiSaveBtn").addEventListener("click", ()=>{
   const s = {base: document.getElementById("aiBase").value.trim(),
     key: document.getElementById("aiKey").value.trim(),
