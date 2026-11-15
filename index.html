@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<title>WordNest V3.6.10 — English Learning</title>
+<title>WordNest V3.6.11 — English Learning</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#fff;color:#111;font-family:'Space Mono','Sarasa Mono SC',ui-monospace,'SF Mono',Menlo,'PingFang SC','Helvetica Neue',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
@@ -61,35 +61,32 @@ nav button.active .ico{background:#111;color:#fff}
 .node{position:absolute;padding:9px 12px;border-radius:999px;background:#fff;border:1px solid #ddd;font-weight:700;font-size:14px;cursor:pointer}
 .line{position:absolute;height:2px;background:#ddd;transform-origin:0 50%}
 .welcome{position:fixed;inset:0;background:#fff;z-index:120;display:flex;flex-direction:column;justify-content:flex-start;overflow-y:auto;padding:52px 28px 36px}
-.wflow{margin-top:30px;border:1.5px solid #e4e4e4;border-radius:18px;padding:18px 14px 16px;background-image:radial-gradient(#e6e6e6 1.2px, transparent 1.4px);background-size:18px 18px}
-.wflow h2{font-size:16px;font-weight:700;margin:0 0 14px}
-.wnode{background:#fff;border:1.5px solid #111;border-radius:14px;padding:13px 14px}
-.wnode-h{font-size:13px;font-weight:700;display:flex;align-items:center;margin-bottom:11px}
-.wdot{width:8px;height:8px;border-radius:50%;background:#111;margin-right:8px;flex:0 0 auto}
-.wnode .cap{font-size:13.5px;line-height:1.75;color:#333;margin-top:11px}
-.wconn{height:38px;position:relative;background:radial-gradient(circle 4px at 50% 6px, #111 3.5px, transparent 4.6px),radial-gradient(circle 4px at 50% calc(100% - 6px), #111 3.5px, transparent 4.6px)}
-.wconn:before{content:"";position:absolute;left:50%;top:9px;bottom:9px;border-left:2px dashed #c6c6c6;transform:translateX(-1px)}
-.wsteps{display:flex;align-items:center;gap:5px;margin-top:11px}
-.wchip{flex:1;border:1.5px solid #111;border-radius:999px;font-size:11.5px;text-align:center;padding:5px 1px;background:#fff;white-space:nowrap}
-.warr{color:#9a9a9a;font-size:12px;flex:0 0 auto}
-.wsubs{display:flex;gap:8px;margin-top:10px}
-.wsub{flex:1;border:1.5px solid #e2e2e2;border-radius:10px;padding:9px 10px;background:#fff}
-.wsub b{font-size:12.5px;display:block;margin-bottom:3px}
-.wsub span{font-size:11.5px;color:#666;line-height:1.65;display:block}
+.wframe{display:none}
+.wframe.on{display:block}
+.wcap{font-size:14px;line-height:1.85;color:#333;margin-top:14px}
+.wctrl{display:flex;align-items:center;gap:8px;margin-top:24px}
+.wctrl #wNext{flex:0 0 auto;padding-left:24px;padding-right:24px}
+.wdots{display:flex;gap:6px;flex:1;justify-content:center}
+.wdot2{width:7px;height:7px;border-radius:50%;background:#ddd}
+.wdot2.on{background:#111}
+.phone{border:2px solid #111;border-radius:26px;padding:16px 14px 12px;background:#fff}
+.pnav{display:flex;justify-content:space-around;border-top:1.5px solid #eee;margin-top:14px;padding-top:10px}
+.pi{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#111;position:relative}
+.pi.on{background:#111;color:#fff}
+.pbadge{position:absolute;top:-5px;right:-7px;background:#111;color:#fff;border:1.5px solid #fff;border-radius:999px;font-size:9px;line-height:1;padding:2px 5px}
 .mock-search{border:1.5px solid #111;border-radius:999px;padding:7px 14px;font-size:13.5px;background:#fff}
 .mock-line{height:8px;background:#e9e9e9;border-radius:4px;margin-top:8px}
-.mock-photo{border:1.5px solid #111;border-radius:10px;padding:10px;background:#fff}
 .mock-crop{border:2px solid #111;border-radius:6px;padding:7px 9px;font-size:12.5px;line-height:1.85}
-.mock-hl{background:#d9d9d9;border-radius:3px;padding:0 3px}
 .mock-card{background:#f2f2f2;border-radius:12px;padding:13px}
 .mock-btns{display:flex;gap:8px;margin-top:11px}
 .mock-btn{flex:1;border:1.5px solid #111;border-radius:999px;text-align:center;font-size:12px;padding:6px 0;background:#fff}
 .mock-grades{display:flex;gap:6px;margin-top:8px}
 .mock-grade{flex:1;border:1.5px solid #d8d8d8;border-radius:999px;text-align:center;font-size:11px;padding:5px 0;color:#555;background:#fff}
+.wcw{border:1.5px solid #d8d8d8;border-radius:999px;padding:2px 9px;white-space:nowrap}
+.wcw.on{background:#111;color:#fff;border-color:#111}
 .welcome h1{font-size:23px;font-weight:700;margin:0 0 22px;line-height:1.4}
 .welcome p{font-size:15px;line-height:1.95;color:#333;margin:0 0 14px}
 .welcome .attr{color:#9a9a9a;font-size:13px}
-.welcome .wactions{margin-top:36px;display:flex;flex-direction:column;gap:6px}
 .welcome .skipbtn{background:none;color:#9a9a9a;font-size:14px;padding:10px}
 .toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#111;color:#fff;padding:11px 20px;border-radius:999px;display:none;z-index:50;max-width:90%;text-align:center;font-size:13.5px}
 footer{text-align:center;color:#9a9a9a;font-size:12px;margin-top:25px;line-height:1.5}
@@ -302,46 +299,70 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 </div>
 </section>
 
-<footer>WordNest V3.6.10 · 数据存本机</footer>
+<footer>WordNest V3.6.11 · 数据存本机</footer>
 </div>
 
 <div id="welcome" class="welcome hidden">
+<div class="wframe on">
 <h1>整句吞下去，整句吐出来</h1>
 <p>林语堂在《英语学习要诀》里说：学英文须学全句，勿专念单字。把整句话吞下去，再整句吐出来——文顺、音正、句法通、用字当。词从来不是孤零零活着的，它活在句子里。</p>
 <p>WordNest 就照这个方法做：读书遇到生词，拍下它所在的那一页，词连着原句一起收进词库；复习时先看原句，跟读它、手写它，直到这个词重新回到句子里、回到你嘴边。</p>
 <p class="attr">—— 方法出自林语堂《英语学习要诀》</p>
-<div class="wflow">
-<h2>三个功能</h2>
-<div class="wnode">
-<div class="wnode-h"><span class="wdot"></span>01 · 查词</div>
+</div>
+<div class="wframe">
+<div class="phone">
 <div class="mock-search">initiative</div>
-<div style="font-size:13.5px;margin-top:9px">倡议；主动性</div>
-<div class="mock-line" style="width:82%"></div>
-<div class="mock-line" style="width:64%"></div>
-<div class="cap">中英文都能查：释义、音标、例句、词根一次到位，查过自动存入词库。</div>
+<div style="font-size:16px;font-weight:700;margin-top:13px">initiative <span style="color:#9a9a9a;font-weight:400;font-size:12px">/ɪˈnɪʃətɪv/</span></div>
+<div style="font-size:13.5px;margin-top:4px">倡议；主动性</div>
+<div class="mock-line" style="width:85%"></div>
+<div class="mock-line" style="width:60%"></div>
+<div style="font-size:12px;color:#9a9a9a;margin-top:9px">词根：前缀 in-：向内 + ……</div>
+<div class="pnav"><span class="pi on"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5L16.7 16.7"/></svg></span><span class="pi"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z"/><circle cx="12" cy="13.5" r="3.6"/></svg></span><span class="pi"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3.5l2.5 5.3 5.8.7-4.3 4 1.1 5.7L12 16.4l-5.1 2.8L8 13.5 3.7 9.5l5.8-.7z"/></svg></span></div>
 </div>
-<div class="wconn"></div>
-<div class="wnode">
-<div class="wnode-h"><span class="wdot"></span>02 · 拍照收词</div>
-<div class="mock-photo"><div class="mock-crop">He took the <span class="mock-hl">initiative</span> and<br>spoke first.</div></div>
-<div class="wsteps"><div class="wchip">拍下这一页</div><span class="warr">→</span><div class="wchip">点选生词</div><span class="warr">→</span><div class="wchip">自动生成闪卡</div></div>
-<div class="cap">读书遇到生词，不用停下来查：拍下那一页，识别出整句，点一下生词，它就连着原句自动成卡。词和句子一起收，这就是「整句吞下去」。</div>
+<p class="wcap"><b>① 查词</b> — 中英文都能查：释义、音标、例句、词根一次到位，查过自动存入词库。</p>
 </div>
-<div class="wconn"></div>
-<div class="wnode">
-<div class="wnode-h"><span class="wdot"></span>03 · 闪卡复习</div>
-<div class="mock-card"><div style="font-size:18px;font-weight:700">initiative</div>
-<div class="mock-btns"><div class="mock-btn">跟读</div><div class="mock-btn">挖空手写</div></div>
-<div class="mock-grades"><div class="mock-grade">重来</div><div class="mock-grade">困难</div><div class="mock-grade">良好</div><div class="mock-grade">简单</div></div></div>
-<div class="wsubs">
-<div class="wsub"><b>跟读</b><span>听一遍原音，自己读一遍，回放听自己的声音，给自己评一下。</span></div>
-<div class="wsub"><b>挖空手写</b><span>原句里的词被挖掉，手写把它填回去，写完核对。</span></div>
+<div class="wframe">
+<div class="phone">
+<div style="font-size:12.5px;line-height:1.9;color:#c4c4c4">The meeting began at nine.</div>
+<div class="mock-crop">He took the initiative and<br>spoke first, calmly.</div>
+<div class="mock-btns"><div class="mock-btn" style="background:#111;color:#fff">识别内容</div><div class="mock-btn" style="border-color:#e2e2e2">取消</div></div>
+<div class="pnav"><span class="pi"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5L16.7 16.7"/></svg></span><span class="pi on"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z"/><circle cx="12" cy="13.5" r="3.6"/></svg></span><span class="pi"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3.5l2.5 5.3 5.8.7-4.3 4 1.1 5.7L12 16.4l-5.1 2.8L8 13.5 3.7 9.5l5.8-.7z"/></svg></span></div>
 </div>
-<div class="cap">复习先出原句。练完再给自己评分；到期的词会自动排到今天。</div>
+<p class="wcap"><b>② 拍照收词（一）</b> — 读书遇到生词，拍下这一页，把框对准那几行字，点「识别内容」。</p>
 </div>
-<p style="text-align:center;color:#9a9a9a;font-size:13px;margin:18px 0 0">吞下去 → 吐出来 → 记住了</p>
+<div class="wframe">
+<div class="phone">
+<div style="font-size:13.5px;line-height:2.2">He took the <span class="wcw on">initiative</span> and spoke first.</div>
+<div style="font-size:12px;color:#9a9a9a;margin-top:8px">已选 1 个词 · 连同这句原话一起收</div>
+<div class="mock-btns"><div class="mock-btn" style="background:#111;color:#fff">制作闪卡</div></div>
+<div class="pnav"><span class="pi"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5L16.7 16.7"/></svg></span><span class="pi on"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z"/><circle cx="12" cy="13.5" r="3.6"/></svg></span><span class="pi"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3.5l2.5 5.3 5.8.7-4.3 4 1.1 5.7L12 16.4l-5.1 2.8L8 13.5 3.7 9.5l5.8-.7z"/></svg></span></div>
 </div>
-<div class="wactions"><button id="welcomeGo">开始使用</button><button class="skipbtn" id="welcomeSkip">跳过</button></div>
+<p class="wcap"><b>② 拍照收词（二）</b> — 识别出整句后，点一下生词，它就连着原句自动生成闪卡。词和句子一起收，这就是「整句吞下去」。</p>
+</div>
+<div class="wframe">
+<div class="phone">
+<div style="display:flex;justify-content:space-between;font-size:11.5px;color:#9a9a9a"><span>待背 3</span><span>已背 0</span><span>掌握 0</span><span>没掌握 0</span></div>
+<div class="mock-card" style="margin-top:10px"><div style="font-size:19px;font-weight:700">initiative</div>
+<div style="font-size:12px;color:#9a9a9a;margin-top:3px">/ɪˈnɪʃətɪv/</div>
+<div class="mock-btns"><div class="mock-btn">看释义</div></div></div>
+<div class="mock-grades"><div class="mock-grade">重来</div><div class="mock-grade">困难</div><div class="mock-grade">良好</div><div class="mock-grade">简单</div></div>
+<div class="pnav"><span class="pi"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5L16.7 16.7"/></svg></span><span class="pi"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z"/><circle cx="12" cy="13.5" r="3.6"/></svg></span><span class="pi on"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3.5l2.5 5.3 5.8.7-4.3 4 1.1 5.7L12 16.4l-5.1 2.8L8 13.5 3.7 9.5l5.8-.7z"/></svg><span class="pbadge">3</span></span></div>
+</div>
+<p class="wcap"><b>③ 闪卡复习</b> — 到期的词会排到今天。先看原句想意思，点卡听发音，想好了再看释义、评分。</p>
+</div>
+<div class="wframe">
+<div class="phone">
+<div class="mock-card"><div style="font-size:13.5px;line-height:1.8">He took the <span style="border-bottom:2px solid #111;padding:0 14px">&nbsp;</span> and spoke first.</div>
+<div class="mock-btns"><div class="mock-btn">跟读</div><div class="mock-btn">挖空手写</div></div></div>
+<div style="font-size:12.5px;line-height:1.8;margin-top:11px"><b>跟读</b> <span style="color:#666">听原音 → 自己读一遍 → 回放自评</span></div>
+<div style="font-size:12.5px;line-height:1.8"><b>挖空手写</b> <span style="color:#666">词被挖掉，手写填回去 → 核对</span></div>
+<div class="mock-grades"><div class="mock-grade">重来</div><div class="mock-grade">困难</div><div class="mock-grade">良好</div><div class="mock-grade">简单</div></div>
+<div class="pnav"><span class="pi"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5L16.7 16.7"/></svg></span><span class="pi"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z"/><circle cx="12" cy="13.5" r="3.6"/></svg></span><span class="pi on"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3.5l2.5 5.3 5.8.7-4.3 4 1.1 5.7L12 16.4l-5.1 2.8L8 13.5 3.7 9.5l5.8-.7z"/></svg><span class="pbadge">3</span></span></div>
+</div>
+<p class="wcap"><b>③ 闪卡复习 · 两种练法</b> — 读出声、手写出来，词才真正回到你身上。练完，再给自己评分。</p>
+<p style="text-align:center;color:#9a9a9a;font-size:13px;margin:14px 0 0">吞下去 → 吐出来 → 记住了</p>
+</div>
+<div class="wctrl"><button class="skipbtn" id="welcomeSkip">跳过</button><button class="skipbtn hidden" id="wPrev">上一步</button><div class="wdots" id="wDots"></div><button id="wNext">下一步</button></div>
 </div>
 <div id="toast" class="toast"></div>
 
@@ -2253,10 +2274,25 @@ document.getElementById("aiSaveBtn").addEventListener("click", ()=>{
   toast("AI 设置已保存在本机");
 });
 document.getElementById("libFilter").addEventListener("input", renderLibrary);
-function showWelcome(){ document.getElementById("welcome").classList.remove("hidden"); }
+let wStep = 0;
+function wShow(i){
+  const frames = document.querySelectorAll("#welcome .wframe");
+  wStep = Math.max(0, Math.min(frames.length - 1, i));
+  frames.forEach((f, j)=> f.classList.toggle("on", j === wStep));
+  document.getElementById("wPrev").classList.toggle("hidden", wStep === 0);
+  document.getElementById("wNext").textContent = wStep === frames.length - 1 ? "开始使用" : "下一步";
+  document.getElementById("wDots").innerHTML =
+    Array.from(frames).map((_, j)=> '<span class="wdot2' + (j === wStep ? " on" : "") + '"></span>').join("");
+  document.getElementById("welcome").scrollTop = 0;
+}
+function showWelcome(){ wShow(0); document.getElementById("welcome").classList.remove("hidden"); }
 function hideWelcome(){ document.getElementById("welcome").classList.add("hidden");
   try{ localStorage.setItem("wordnest_welcomed_v1", "1"); }catch(e){} }
-document.getElementById("welcomeGo").addEventListener("click", hideWelcome);
+document.getElementById("wNext").addEventListener("click", ()=>{
+  const frames = document.querySelectorAll("#welcome .wframe");
+  if(wStep >= frames.length - 1) hideWelcome(); else wShow(wStep + 1);
+});
+document.getElementById("wPrev").addEventListener("click", ()=> wShow(wStep - 1));
 document.getElementById("welcomeSkip").addEventListener("click", hideWelcome);
 document.getElementById("aboutBtn").addEventListener("click", showWelcome);
 document.getElementById("exportBtn").addEventListener("click", ()=>{
