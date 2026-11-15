@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<title>WordNest V3.6.7 — English Learning</title>
+<title>WordNest V3.6.8 — English Learning</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#fff;color:#111;font-family:'Space Mono','Sarasa Mono SC',ui-monospace,'SF Mono',Menlo,'PingFang SC','Helvetica Neue',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
@@ -186,6 +186,7 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 <button data-menu="share">分享</button>
 <button data-menu="stats">学习情况</button>
 <button data-menu="settings">设置 · AI</button>
+<button data-menu="about">关于 WordNest</button>
 </div>
 </div>
 <div id="result" class="empty">试试 <b>hello</b>、<b>improve</b>、<b>figure out</b><br><span class="small">支持中文输入，如「承担」；粘贴整段英文可点选生词</span></div>
@@ -276,7 +277,7 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 </div>
 </section>
 
-<footer>WordNest V3.6.7 · 数据存本机</footer>
+<footer>WordNest V3.6.8 · 数据存本机</footer>
 </div>
 
 <div id="welcome" class="welcome hidden">
@@ -2091,6 +2092,7 @@ document.querySelectorAll("#moreMenu button").forEach(b =>
   b.addEventListener("click", ()=>{
     document.getElementById("moreMenu").classList.add("hidden");
     if(b.dataset.menu === "share"){ shareLibrary(); return; }
+    if(b.dataset.menu === "about"){ showWelcome(); return; }
     switchTab(b.dataset.menu);
   }));
 document.getElementById("searchBtn").addEventListener("click", ()=> search());
