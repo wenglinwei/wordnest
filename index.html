@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<title>WordNest V3.6.11 — English Learning</title>
+<title>WordNest V3.6.13 — English Learning</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#fff;color:#111;font-family:'Space Mono','Sarasa Mono SC',ui-monospace,'SF Mono',Menlo,'PingFang SC','Helvetica Neue',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
@@ -48,7 +48,7 @@ nav button.active .ico{background:#111;color:#fff}
 .meaning{line-height:1.75;color:#111;font-size:15px}
 .example{background:#f4f4f4;padding:16px 18px;border-radius:14px;margin-top:12px;line-height:1.7;font-size:15px}
 .tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.tag{background:#fff;border:1px solid #dcdcdc;color:#111;border-radius:999px;padding:7px 14px;font-size:13px;cursor:pointer}
+.tag{display:inline-block;background:#fff;border:1px solid #dcdcdc;color:#111;border-radius:999px;padding:7px 14px;font-size:13px;cursor:pointer}
 .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
 .actions button{flex:1;min-width:120px}
 .empty{text-align:center;color:#8a8a8a;padding:45px 15px}
@@ -161,9 +161,10 @@ footer{text-align:center;color:#9a9a9a;font-size:12px;margin-top:25px;line-heigh
 .tok.sel{background:#d9d9d9;font-weight:700}
 .tok.pre{background:#e6e6e6;font-weight:700}
 .captext{background:#fff;border:1px solid #e3e3e3;border-radius:16px;padding:16px;margin-top:10px;line-height:2}
-.capgrp{display:flex;gap:12px;padding:12px 2px;border-bottom:1px solid #ececec;align-items:baseline}
-.capgrp .w{font-weight:700;font-size:14.5px;flex:none}
-.capgrp .g{font-size:13.5px;color:#555;line-height:1.65}
+.capgrp{padding:12px 2px;border-bottom:1px solid #ececec}
+.capgrp .caprow{display:flex;gap:10px;align-items:flex-start}
+.capgrp .w{font-weight:700;font-size:14.5px;flex:1;min-width:0;overflow-wrap:anywhere;line-height:1.5}
+.capgrp .g{display:block;font-size:13.5px;color:#555;line-height:1.65;margin-top:3px}
 mark{background:#e6e6e6;border-radius:4px;padding:0 3px}
 textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 12px;font-size:16px;font-family:inherit;min-height:84px}
 .dash{background:#111;color:#fff;border-radius:16px;padding:18px;margin:12px 0}
@@ -299,7 +300,7 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 </div>
 </section>
 
-<footer>WordNest V3.6.11 · 数据存本机</footer>
+<footer>WordNest V3.6.13 · 数据存本机</footer>
 </div>
 
 <div id="welcome" class="welcome hidden">
@@ -696,10 +697,19 @@ function pickSimpleDef(defs){
     .sort((a, b) => (a.definition || "").length - (b.definition || "").length);
   return sorted[0] || defs[0];
 }
+/* Every pipeline request gets a hard timeout: from this network the free
+   dictionary / translation hosts sometimes hang instead of failing, and one
+   hanging request used to stall the whole serial lookup chain. */
+async function fetchT(url, ms){
+  let ctl = null, timer = null;
+  try{ ctl = new AbortController(); timer = setTimeout(() => ctl.abort(), ms || 6000); }catch(e){}
+  try{ return await fetch(url, ctl ? {signal: ctl.signal} : {}); }
+  finally{ if(timer) clearTimeout(timer); }
+}
 async function fetchDictEntry(word){
   for(let attempt = 0; attempt < 2; attempt++){
     try{
-      const r = await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(word));
+      const r = await fetchT("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(word), 6000);
       if(r.ok){
         const j = await r.json();
         const entries = Array.isArray(j) ? j : (j ? [j] : []);
@@ -754,7 +764,7 @@ async function fetchDictEntry(word){
 }
 async function datamuseWords(query){
   try{
-    const r = await fetch("https://api.datamuse.com/words?" + query);
+    const r = await fetchT("https://api.datamuse.com/words?" + query, 5000);
     if(!r.ok) return [];
     const j = await r.json();
     return (j||[]).map(x => x.word).filter(Boolean);
@@ -762,7 +772,7 @@ async function datamuseWords(query){
 }
 async function dictHasWord(word){
   try{
-    const r = await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(word));
+    const r = await fetchT("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(word), 5000);
     return !!r.ok;
   }catch(e){ return false; }
 }
@@ -820,8 +830,8 @@ async function translateText(text, from, to){
   const g = await googleTranslate(text, from, to);
   if(g && g.toLowerCase() !== String(text).toLowerCase()) return g;
   try{
-    const r = await fetch("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(text) +
-      "&langpair=" + encodeURIComponent(from) + "|" + encodeURIComponent(to));
+    const r = await fetchT("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(text) +
+      "&langpair=" + encodeURIComponent(from) + "|" + encodeURIComponent(to), 6000);
     if(!r.ok) return "";
     const j = await r.json();
     const t = cleanTranslation(j && j.responseData && j.responseData.translatedText || "");
@@ -842,8 +852,8 @@ async function translateWord(term, pos){
   }
   for(const q of tries){
     try{
-      const r = await fetch("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(q) +
-        "&langpair=en|zh-CN");
+      const r = await fetchT("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(q) +
+        "&langpair=en|zh-CN", 6000);
       if(!r.ok) continue;
       const j = await r.json();
       const cands = [];
@@ -876,21 +886,22 @@ async function fetchOnline(term){
         senses: entry.senses || [], v: 2};
       if(lemma) detail.lemma = lemma;
     }
-    const fam = await fetchFamily(term, lemma, entry ? entry.synonyms : []);
+    const [fam, zhW, ezW] = await Promise.all([
+      fetchFamily(term, lemma, entry ? entry.synonyms : []),
+      translateWord(term, entry ? (entry.pos || "") : ""),
+      (entry && entry.example) ? translateText(entry.example, "en", "zh-CN").catch(() => "") : Promise.resolve("")
+    ]);
     detail = detail || {pos:"", zh:"", meaning:"", example:"", family:[], root:"", source:"online", v:2};
     detail.family = mergeFamily([detail.family, fam], term, 8);
     detail.root = etymologyFor(term, lemma);
+    if(zhW){ detail.zh = detail.zh || zhW; }
+    if(ezW && hasCJK(ezW) && ezW !== detail.example) detail.exampleZh = ezW;
   }else{
     detail = {pos:"", zh:"", meaning:"", example:"", family:[], root:"", source:"online", v:2};
+    const zh = await translateText(term, "en", "zh-CN");
+    if(zh){ detail.zh = detail.zh || zh; }
   }
-  const zh = /\s/.test(term) ? await translateText(term, "en", "zh-CN")
-    : await translateWord(term, detail.pos || "");
-  if(zh){ detail.zh = detail.zh || zh; }
   detail.synonyms = (detail.synonyms || []).filter(x => x && !hasCJK(x)).slice(0, 8);
-  if(detail.example && !detail.exampleZh){
-    try{ const ez = await translateText(detail.example, "en", "zh-CN");
-      if(ez && hasCJK(ez) && ez !== detail.example) detail.exampleZh = ez; }catch(e){}
-  }
   return (detail.meaning || detail.zh || (detail.family && detail.family.length)) ? detail : null;
 }
 function detailIncomplete(d){
@@ -1431,12 +1442,18 @@ async function runOCR(){
   const srcBmp = photoBmp || img;
   const SW = photoBmp ? photoBmp.width : img.naturalWidth;
   const SH = photoBmp ? photoBmp.height : img.naturalHeight;
+  /* Sample a slightly larger region than the drawn box: a letter touching
+     the box edge (classically the sentence-initial "I") gets clipped by the
+     recognizer and read as "1"/"l" or dropped entirely. */
+  const padX = crop.w * 0.05, padY = crop.h * 0.08;
+  const rx = Math.max(0, crop.x - padX), ry = Math.max(0, crop.y - padY);
+  const rw = Math.min(1 - rx, crop.w + padX * 2), rh = Math.min(1 - ry, crop.h + padY * 2);
   const canvas = document.createElement("canvas");
-  canvas.width = Math.round(SW * crop.w);
-  canvas.height = Math.round(SH * crop.h);
+  canvas.width = Math.round(SW * rw);
+  canvas.height = Math.round(SH * rh);
   const ctx = canvas.getContext("2d");
-  ctx.drawImage(srcBmp, SW*crop.x, SH*crop.y,
-    SW*crop.w, SH*crop.h, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(srcBmp, SW*rx, SH*ry,
+    SW*rw, SH*rh, 0, 0, canvas.width, canvas.height);
   /* Print-friendly copy for recognition: fade light marks (pencil underlines,
      faint handwriting) to white so the engine mostly sees printed text.
      The original canvas is kept untouched for mark detection. */
@@ -1573,7 +1590,11 @@ function buildOcrTokens(words){
   lines.sort((a,b) => a.cy - b.cy);
   const tokens = [];
   lines.forEach((l, li) => { l.items.sort((a,b) => a.bbox.x0 - b.bbox.x0);
-    l.items.forEach(t => { t.line = li; tokens.push(t); }); });
+    l.items.forEach((t, ti) => {
+      /* English has no standalone "l": at a line start it is the pronoun
+         "I" misread. ("1" is NOT converted — Bible verse numbers are real.) */
+      if(ti === 0 && (t.raw === "l" || t.raw === "|")) t.raw = "I";
+      t.line = li; tokens.push(t); }); });
   const sentences = assignSentences(tokens);
   tokens.forEach(t => t.sentenceText = sentences[t.sentenceIdx] || "");
   return tokens;
@@ -1676,11 +1697,12 @@ function renderCapGroups(){
     const tr = (st.trans || {})[g.text];
     const zh = (tr === undefined || tr === null) ? '翻译中…'
       : (tr ? escapeHtml(tr) : '（暂无翻译，确认后会再查）');
-    return '<div class="capgrp"><span class="w">' + escapeHtml(g.text) + '</span>' +
+    return '<div class="capgrp"><div class="caprow"><span class="w">' + escapeHtml(g.text) + '</span>' +
+      (g.indices.length > 1 ? '<button class="secondary" style="flex:none;padding:8px 14px" data-action="cap-split" data-start="' + g.start + '">拆开</button>' : '') +
+      '</div>' +
       '<span class="g">' + zh +
       '<br><span style="color:#8a8a8a;font-size:12.5px">' + (g.indices.length > 1 ? '短语' : '单词') +
       ' · ' + escapeHtml(lineTextOf(tokens[g.start].line || 0)) + '</span></span>' +
-      (g.indices.length > 1 ? '<button class="secondary" style="flex:none;padding:8px 14px" data-action="cap-split" data-start="' + g.start + '">拆开</button>' : '') +
       '</div>';
   }).join("") : '<div class="small">点词选中，选中后自动翻译。</div>';
 }
@@ -2104,17 +2126,11 @@ document.addEventListener("click", e => {
       });
       saveLib(lib);
       window.__lastBatch = terms;
+      const doneKind = captureState ? captureState.kind : "photo";
       closeCaptureTask();
-      const bd = document.getElementById("batchDone");
-      if(bd){
-        bd.classList.remove("hidden");
-        bd.innerHTML = '<div class="donecard"><div style="font-size:17px;font-weight:800">✓ 已生成 ' + terms.length + ' 张闪卡</div>' +
-          '<div style="margin-top:4px">已加入复习队列 <span id="enrichProg">（补全释义 0/' + terms.length + '）</span></div>' +
-          '<div class="actions"><button data-action="start-review">开始复习</button>' +
-          '<button class="secondary" data-action="dismiss-batch">完成</button></div></div>';
-        scrollToEl(bd);
-      }
       refreshAll();
+      toast("已生成 " + terms.length + " 张闪卡，已加入复习队列");
+      if(doneKind === "photo") showSrcPop();
       (async () => {
         let done = 0;
         const enrichOne = async (term) => {
@@ -2192,7 +2208,6 @@ document.getElementById("photoBtn").addEventListener("click", ()=>{
   const cp = document.getElementById("capturePanel");
   const bd = document.getElementById("batchDone");
   if(captureState && cp && !cp.classList.contains("hidden")) return; /* capture in progress: keep it */
-  if(bd && !bd.classList.contains("hidden") && bd.innerHTML) return; /* completion card showing */
   const img = document.getElementById("cropImg");
   if(img && img.naturalWidth){
     hideSrcPop();
