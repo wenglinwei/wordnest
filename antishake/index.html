@@ -54,6 +54,7 @@
     <div class="btnrow">
       <button class="btn-line" id="recBtn">开始记录数据</button>
       <button class="btn-line" id="expBtn" disabled style="opacity:.45">导出数据</button>
+      <button class="btn-line" id="copyBtn" disabled style="opacity:.45">复制数据到聊天</button>
       <span id="recInfo" style="font-size:12.5px;color:#8a8a8a;align-self:center"></span>
     </div>
     <div class="ctl">
@@ -87,7 +88,7 @@
     </div>
   </div>
 
-  <p class="foot">怎么看有没有效果：晃动手机时，上面的文字会在屏幕里反着滑动（它在抵消你的晃动），波形里黑线应该比灰线平，抖动减少能到 60% 以上就是补偿在实实在在干活。平滑度拉太高黑线会变钝、减少率反而掉，那是补偿跟不上晃动，可以自己试。在电脑上打开没有传感器，点「模拟晃动」也能看全套效果。想让我看你真实的测试数据：点「开始记录数据」，读一分钟，停止后点「导出数据」，把导出的 antishake-log.csv 发到聊天里，我就能算给你看。</p>
+  <p class="foot">怎么看有没有效果：晃动手机时，上面的文字会在屏幕里反着滑动（它在抵消你的晃动），波形里黑线应该比灰线平，抖动减少能到 60% 以上就是补偿在实实在在干活。平滑度拉太高黑线会变钝、减少率反而掉，那是补偿跟不上晃动，可以自己试。在电脑上打开没有传感器，点「模拟晃动」也能看全套效果。想让我看你真实的测试数据：点「开始记录数据」，读一分钟，停止后点「复制数据到聊天」，回聊天里粘贴发送，我就能算给你看。</p>
 
 <script>
 (function(){
@@ -97,7 +98,7 @@
   var gainVal = document.getElementById('gainVal'), smoothVal = document.getElementById('smoothVal');
   var moveText = document.getElementById('moveText'), offReadout = document.getElementById('offReadout');
   var rmsRawEl = document.getElementById('rmsRaw'), rmsResEl = document.getElementById('rmsRes'), reduceEl = document.getElementById('reduce');
-  var recBtn = document.getElementById('recBtn'), expBtn = document.getElementById('expBtn'), recInfo = document.getElementById('recInfo');
+  var recBtn = document.getElementById('recBtn'), expBtn = document.getElementById('expBtn'), copyBtn = document.getElementById('copyBtn'), recInfo = document.getElementById('recInfo');
   var wave = document.getElementById('wave'), ctx = wave.getContext('2d');
 
   var SCALE = 5;               // px per m/s^2, acceleration -> pseudo displacement
@@ -165,18 +166,36 @@
     if (recording) { logRows = []; recStart = performance.now(); recBtn.textContent = '停止记录'; recBtn.className = 'btn-line on'; }
     else {
       recBtn.textContent = '开始记录数据'; recBtn.className = 'btn-line';
-      if (logRows.length > 10) { expBtn.disabled = false; expBtn.style.opacity = '1'; }
-      recInfo.textContent = logRows.length ? ('已记录 ' + (logRows.length / 10).toFixed(0) + ' 秒，点「导出数据」发给 Muse 分析') : '';
+      if (logRows.length > 10) { expBtn.disabled = false; expBtn.style.opacity = '1'; copyBtn.disabled = false; copyBtn.style.opacity = '1'; }
+      recInfo.textContent = logRows.length ? ('已记录 ' + (logRows.length / 10).toFixed(0) + ' 秒，点「复制数据到聊天」，回聊天粘贴发送即可') : '';
     }
   });
-  expBtn.addEventListener('click', function(){
-    if (!logRows.length) return;
+  function buildCsv(){
     var sr = 0, ss = 0, i;
     for (i = 0; i < logRows.length; i++) { sr += logRows[i][1] * logRows[i][1]; ss += logRows[i][2] * logRows[i][2]; }
     var rr = Math.sqrt(sr / logRows.length), rs = Math.sqrt(ss / logRows.length);
     var red = rr > 0.1 ? Math.max(0, (1 - rs / rr) * 100) : 0;
     var csv = '# anti-shake test log\n# seconds,' + (logRows.length / 10).toFixed(1) + '\n# rawRMS_px,' + rr.toFixed(2) + '\n# residualRMS_px,' + rs.toFixed(2) + '\n# reduction_pct,' + red.toFixed(1) + '\n# gain_pct,' + gainEl.value + '\n# smooth_pct,' + smoothEl.value + '\nt_s,raw_px,res_px,off_x,off_y\n';
     for (i = 0; i < logRows.length; i++) csv += logRows[i].join(',') + '\n';
+    return csv;
+  }
+  copyBtn.addEventListener('click', function(){
+    if (!logRows.length) return;
+    var csv = buildCsv();
+    function done(){ recInfo.textContent = '已复制！回 Muse 聊天，长按输入框点「粘贴」发送'; }
+    function fallback(){
+      var ta = document.createElement('textarea');
+      ta.value = csv; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) { recInfo.textContent = '复制失败，请用「导出数据」保存文件'; }
+      ta.remove();
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(csv).then(done).catch(fallback);
+    else fallback();
+  });
+  expBtn.addEventListener('click', function(){
+    if (!logRows.length) return;
+    var csv = buildCsv();
     var blob = new Blob([csv], { type: 'text/csv' });
     var file = new File([blob], 'antishake-log.csv', { type: 'text/csv' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
