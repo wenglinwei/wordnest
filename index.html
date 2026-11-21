@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<title>WordNest V3.6.13 — English Learning</title>
+<title>WordNest V3.6.14 — English Learning</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#fff;color:#111;font-family:'Space Mono','Sarasa Mono SC',ui-monospace,'SF Mono',Menlo,'PingFang SC','Helvetica Neue',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
@@ -48,6 +48,7 @@ nav button.active .ico{background:#111;color:#fff}
 .meaning{line-height:1.75;color:#111;font-size:15px}
 .example{background:#f4f4f4;padding:16px 18px;border-radius:14px;margin-top:12px;line-height:1.7;font-size:15px}
 .tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.tokedit{font:inherit;font-weight:700;font-size:15px;padding:7px 10px;border:1.5px solid #111;border-radius:10px;background:#fff;color:#111;box-sizing:border-box}
 .tag{display:inline-block;background:#fff;border:1px solid #dcdcdc;color:#111;border-radius:999px;padding:7px 14px;font-size:13px;cursor:pointer}
 .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
 .actions button{flex:1;min-width:120px}
@@ -300,7 +301,7 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 </div>
 </section>
 
-<footer>WordNest V3.6.13 · 数据存本机</footer>
+<footer>WordNest V3.6.14 · 数据存本机</footer>
 </div>
 
 <div id="welcome" class="welcome hidden">
@@ -338,7 +339,7 @@ textarea{width:100%;border:1.5px solid #e5e5e5;border-radius:10px;padding:11px 1
 <div class="mock-btns"><div class="mock-btn" style="background:#111;color:#fff">制作闪卡</div></div>
 <div class="pnav"><span class="pi"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5L16.7 16.7"/></svg></span><span class="pi on"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z"/><circle cx="12" cy="13.5" r="3.6"/></svg></span><span class="pi"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3.5l2.5 5.3 5.8.7-4.3 4 1.1 5.7L12 16.4l-5.1 2.8L8 13.5 3.7 9.5l5.8-.7z"/></svg></span></div>
 </div>
-<p class="wcap"><b>② 拍照收词（二）</b> — 识别出整句后，点一下生词，它就连着原句自动生成闪卡。词和句子一起收，这就是「整句吞下去」。</p>
+<p class="wcap"><b>② 拍照收词（二）</b> — 识别出整句，词已全部选中，点掉不要的，剩下的连着原句生成闪卡。词和句子一起收，这就是「整句吞下去」。</p>
 </div>
 <div class="wframe">
 <div class="phone">
@@ -870,10 +871,12 @@ async function translateWord(term, pos){
   }
   return "";
 }
-async function fetchOnline(term){
-  let detail = null; let lemma = "";
+async function fetchCore(term){
+  /* Phase 1: the dictionary only. Its entry (meaning, example, phonetic)
+     is enough to show the word immediately; everything else is phase 2. */
+  let detail = null; let lemma = ""; let entry = null;
   if(!/\s/.test(term)){
-    let entry = await fetchDictEntry(term);
+    entry = await fetchDictEntry(term);
     if(!entry){
       for(const cand of lemmaCandidates(term)){
         entry = await fetchDictEntry(cand);
@@ -882,10 +885,17 @@ async function fetchOnline(term){
     }
     if(entry){
       detail = {pos: entry.pos, zh: "", meaning: entry.meaning, example: entry.example,
-        phonetic: entry.phonetic, audio: entry.audio, family: [], root: "", source: "online", synonyms: entry.synonyms,
+        phonetic: entry.phonetic, audio: entry.audio, family: [], root: etymologyFor(term, lemma), source: "online", synonyms: entry.synonyms,
         senses: entry.senses || [], v: 2};
       if(lemma) detail.lemma = lemma;
     }
+  }
+  return {detail: detail, entry: entry, lemma: lemma};
+}
+async function enrichOnline(term, detail, entry, lemma){
+  /* Phase 2: word family + Chinese gloss + example translation, in parallel.
+     Fills the detail object in place and returns it. */
+  if(!/\s/.test(term)){
     const [fam, zhW, ezW] = await Promise.all([
       fetchFamily(term, lemma, entry ? entry.synonyms : []),
       translateWord(term, entry ? (entry.pos || "") : ""),
@@ -893,15 +903,20 @@ async function fetchOnline(term){
     ]);
     detail = detail || {pos:"", zh:"", meaning:"", example:"", family:[], root:"", source:"online", v:2};
     detail.family = mergeFamily([detail.family, fam], term, 8);
-    detail.root = etymologyFor(term, lemma);
+    detail.root = detail.root || etymologyFor(term, lemma);
     if(zhW){ detail.zh = detail.zh || zhW; }
-    if(ezW && hasCJK(ezW) && ezW !== detail.example) detail.exampleZh = ezW;
+    if(ezW && detail.example && hasCJK(ezW) && ezW !== detail.example) detail.exampleZh = ezW;
   }else{
-    detail = {pos:"", zh:"", meaning:"", example:"", family:[], root:"", source:"online", v:2};
+    detail = detail || {pos:"", zh:"", meaning:"", example:"", family:[], root:"", source:"online", v:2};
     const zh = await translateText(term, "en", "zh-CN");
     if(zh){ detail.zh = detail.zh || zh; }
   }
   detail.synonyms = (detail.synonyms || []).filter(x => x && !hasCJK(x)).slice(0, 8);
+  return detail;
+}
+async function fetchOnline(term){
+  const c = await fetchCore(term);
+  const detail = await enrichOnline(term, c.detail, c.entry, c.lemma);
   return (detail.meaning || detail.zh || (detail.family && detail.family.length)) ? detail : null;
 }
 function detailIncomplete(d){
@@ -929,11 +944,17 @@ async function aiLookup(term){
   const base = (s.base || "https://api.openai.com/v1").replace(/\/+$/,"");
   const model = s.model || "gpt-4o-mini";
   const prompt = "You are an English vocabulary teacher for a Chinese learner. Explain the English word/phrase: \"" + term + "\". Reply with ONLY a JSON object: {\"pos\":\"part of speech\",\"zh\":\"concise Chinese meaning\",\"meaning\":\"simple English definition, at most 15 words\",\"example\":\"one natural example sentence\",\"exampleZh\":\"Chinese translation of the example\",\"root\":\"etymology in Chinese: where this word comes from (Latin/Greek origin and root meanings), plus how its parts compose the modern meaning\",\"mnemonic\":\"a memorable trick in Chinese\",\"family\":[\"related word 1\",\"related word 2\",\"related word 3\"]}";
-  const r = await fetch(base + "/chat/completions", {
-    method: "POST",
-    headers: {"Content-Type":"application/json", "Authorization":"Bearer " + s.key},
-    body: JSON.stringify({model: model, messages:[{role:"user", content: prompt}], temperature: 0.4})
-  });
+  let actl = null, atimer = null;
+  try{ actl = new AbortController(); atimer = setTimeout(() => actl.abort(), 20000); }catch(e){}
+  let r;
+  try{
+    r = await fetch(base + "/chat/completions", {
+      method: "POST",
+      headers: {"Content-Type":"application/json", "Authorization":"Bearer " + s.key},
+      body: JSON.stringify({model: model, messages:[{role:"user", content: prompt}], temperature: 0.4}),
+      signal: actl ? actl.signal : undefined
+    });
+  }finally{ if(atimer) clearTimeout(atimer); }
   if(!r.ok) throw new Error("AI 请求失败 (" + r.status + ")");
   const j = await r.json();
   const txt = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content || "";
@@ -988,7 +1009,7 @@ function detailHtml(term, d, gid){
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>' : '')) +
     (d.example ? '<h3 class="sec" style="margin-top:24px">例句</h3><div class="example" style="margin-top:0">' + escapeHtml(d.example) +
       ' <button class="speakbtn" data-action="speak" data-text="' + escapeHtml(d.example) + '" aria-label="朗读例句">' + SPEAK_SVG + '</button>' +
-      (d.exampleZh ? '<div class="small" style="margin-top:6px">' + escapeHtml(d.exampleZh) + '</div>' : '') + '</div>' : '') +
+      '<div class="small exzh" style="margin-top:6px">' + escapeHtml(d.exampleZh || "") + '</div>' + '</div>' : '') +
     (famWords.length ? '<h3 class="sec" style="margin-top:24px">相关词</h3><div class="tags" style="margin-top:0">' + fam + '</div>' : '') +
     (morphText ? '<div class="meaning" style="margin-top:16px"><b>词根：</b>' + escapeHtml(morphText) + '</div>' : '') +
     (syns.length ? '<div class="meaning" style="margin-top:14px"><b>同近义词：</b>' + syns.map(escapeHtml).join('、') + '</div>' : '') +
@@ -1018,6 +1039,10 @@ async function enrichExampleZh(term){
   c2.detail.exampleZh = ez; saveLib(lib2);
   const el = document.getElementById("result");
   if(el && el.dataset.term === term) renderResult(term, c2.detail);
+  if(typeof session !== "undefined" && session && session.current === term && session.showing){
+    const z = document.querySelector("#session .exzh");
+    if(z && !z.textContent) z.textContent = ez;
+  }
 }
 async function glossFor(word){
   const local = findLocal(word);
@@ -1092,7 +1117,17 @@ async function search(termArg){
   const result = document.getElementById("result");
   result.innerHTML = '<div class="card"><span class="spin"></span>正在在线查询「' + escapeHtml(term) + '」…</div>';
   saveLib(lib);
-  let online = await fetchOnline(term);
+  /* Progressive: show the dictionary result the moment it lands, then let
+     the family/gloss/example-translation phase fill the same page in. */
+  const core = await fetchCore(term);
+  let online = core.detail;
+  if(online && online.meaning){
+    const libA = loadLib(); const cardA = ensureCard(libA, term);
+    cardA.detail = online; cardA.unknown = false; saveLib(libA);
+    renderResult(term, online); refreshAll();
+  }
+  online = await enrichOnline(term, online, core.entry, core.lemma);
+  if(!(online && (online.meaning || online.zh || (online.family && online.family.length)))) online = null;
   const lib2 = loadLib(); const card2 = ensureCard(lib2, term);
   if(online && (online.meaning || online.zh)){
     const aiS = aiSettings();
@@ -1293,7 +1328,7 @@ function renderCardBack(){
         escapeHtml(s.pos) + ' · ' + escapeHtml(s.def)).join('<br>') + '</div>' : '') +
     (d.example ? '<div class="example">' + escapeHtml(d.example) +
       ' <button class="speakbtn" data-action="speak" data-text="' + escapeHtml(d.example) + '" aria-label="朗读例句">' + SPEAK_SVG + '</button>' +
-      (d.exampleZh ? '<div class="small" style="margin-top:6px">' + escapeHtml(d.exampleZh) + '</div>' : '') + '</div>' : '') +
+      '<div class="small exzh" style="margin-top:6px">' + escapeHtml(d.exampleZh || "") + '</div>' + '</div>' : '') +
     ((d.contextWords && d.contextWords.length && !/\s/.test(term)) ? '<div class="example">同批选词：' +
       d.contextWords.map(w => '<span class="tag">' + escapeHtml(w) + '</span>').join(' ') +
       (d.source ? '<div class="small" style="margin-top:6px">来源：' + escapeHtml(d.source) + '</div>' : '') + '</div>'
@@ -1303,6 +1338,7 @@ function renderCardBack(){
     '<div class="modes"><button class="modebtn" data-action="mode-speak">跟读</button>' +
     '<button class="modebtn" data-action="mode-cloze">挖空手写</button></div>' +
     '</div>';
+  if(d.example && !d.exampleZh) enrichExampleZh(term);
   renderGradeBar();
 }
 function gradeCurrent(grade){
@@ -1494,16 +1530,12 @@ async function runOCR(){
     tokens = confKept.filter(t => plausibleWord(t.raw) || (typeof t.conf === "number" && t.conf >= 85));
     const ignored = withLetters.length - tokens.length;
     if(!tokens.length){ status.textContent = "框选区域里没有识别到英文，试着框紧一点、只框英文行、避开屏幕反光。"; return; }
-    let pre = tokens.filter(t => t.selected).length;
-    let markNote = "";
-    if(tokens.length >= 8 && pre > tokens.length * 0.6){
-      /* nearly everything "marked" = the detector misfired on this photo */
-      tokens.forEach(t => { t.selected = false; });
-      pre = 0; markNote = "（这张照片上没检测到可靠的标记，预选已取消，请手动点选）";
-    }
-    status.textContent = "识别完成：共 " + tokens.length + " 个词，机器预选了 " + pre + " 个疑似被标记的词" + markNote +
-      (ignored ? "，已自动忽略 " + ignored + " 个低置信度或不像英文词的碎片" : "") +
-      "。点词选中/取消，选中后自动翻译；分开点取各自成卡，同行连选合成一张短语卡。";
+    /* He drew the box because he wants this content: everything starts
+       selected, and tapping a word now means "not this one". */
+    tokens.forEach(t => { t.selected = true; });
+    status.textContent = "识别完成：共 " + tokens.length + " 个词，已全部选中" +
+      (ignored ? "，已忽略 " + ignored + " 个碎片" : "") +
+      "。点词取消不要的，长按某个词可以改字；同行连选合成一张短语卡。";
     setupCapture(out, tokens, "photo");
   }catch(err){
     status.textContent = String(err && err.message || err);
@@ -1661,6 +1693,54 @@ function setupCapture(container, tokens, kind){
   if(bd){ bd.classList.add("hidden"); bd.innerHTML = ""; }
   renderCapture();
 }
+/* Long-press a capture chip to edit the word itself (OCR drops letters;
+   the keyboard is the fastest way to put them back). */
+let tokPressTimer = null, tokPressX = 0, tokPressY = 0, tokSuppressClickUntil = 0;
+document.addEventListener("pointerdown", e => {
+  const sp = e.target && e.target.closest ? e.target.closest('.tok[data-action="cap-tok"]') : null;
+  if(!sp) return;
+  tokPressX = e.clientX; tokPressY = e.clientY;
+  if(tokPressTimer) clearTimeout(tokPressTimer);
+  tokPressTimer = setTimeout(() => {
+    tokPressTimer = null; tokSuppressClickUntil = Date.now() + 700;
+    startTokEdit(+sp.dataset.i);
+  }, 500);
+});
+document.addEventListener("pointermove", e => {
+  if(tokPressTimer && (Math.abs(e.clientX - tokPressX) > 12 || Math.abs(e.clientY - tokPressY) > 12)){
+    clearTimeout(tokPressTimer); tokPressTimer = null;
+  }
+}, {passive: true});
+["pointerup", "pointercancel"].forEach(ev => document.addEventListener(ev, () => {
+  if(tokPressTimer){ clearTimeout(tokPressTimer); tokPressTimer = null; }
+}, {passive: true}));
+function startTokEdit(i){
+  if(!captureState || !captureState.tokens[i]) return;
+  captureState.editing = i;
+  renderCapture();
+  const inp = document.querySelector(".tokedit");
+  if(inp){ inp.focus(); try{ inp.select(); }catch(e){} }
+}
+function commitTokEdit(inp){
+  const st = captureState; if(!st || st.editing === undefined || !inp) return;
+  const i = st.editing; const val = inp.value.trim();
+  delete st.editing;
+  if(!val){ st.tokens.splice(i, 1); st.splitSet.clear(); }
+  else if(st.tokens[i] && val !== st.tokens[i].raw){
+    st.tokens[i].raw = val;
+    const sentences = assignSentences(st.tokens);
+    st.tokens.forEach(t => { t.sentenceText = sentences[t.sentenceIdx] || ""; });
+  }
+  renderCapture();
+}
+document.addEventListener("keydown", e => {
+  if(!e.target || !e.target.classList || !e.target.classList.contains("tokedit")) return;
+  if(e.key === "Enter"){ e.preventDefault(); commitTokEdit(e.target); }
+  else if(e.key === "Escape"){ if(captureState) delete captureState.editing; renderCapture(); }
+});
+document.addEventListener("focusout", e => {
+  if(e.target && e.target.classList && e.target.classList.contains("tokedit")) commitTokEdit(e.target);
+});
 function renderCapture(){
   const st = captureState; if(!st) return;
   const srcEl = document.getElementById("capSource");
@@ -1670,6 +1750,9 @@ function renderCapture(){
   const groups = computeGroups(tokens, st.splitSet);
   const spanHtml = i => {
     const t = tokens[i];
+    if(st.editing === i)
+      return '<input class="tokedit" data-i="' + i + '" value="' + escapeHtml(t.raw) +
+        '" style="width:' + (t.raw.length + 3) + 'ch" autocomplete="off" autocapitalize="none">';
     return '<span class="tok' + (t.selected ? " sel" : "") +
       '" data-action="cap-tok" data-i="' + i + '">' + escapeHtml(t.raw) + '</span>';
   };
@@ -1679,9 +1762,7 @@ function renderCapture(){
     .map(([L, idxs]) => '<div class="capline">' + idxs.map(spanHtml).join(" ") + '</div>').join("");
   st.container.innerHTML =
     '<div class="captext">' + linesHtml + '</div>' +
-    '<div class="small" style="margin-top:8px">已选 ' + selCount + ' 词 → ' + groups.length + ' 张卡（分开点取 = 各自一张卡；同行连选 = 一张短语卡）</div>' +
-    '<div style="margin-top:8px"><button class="secondary" data-action="cap-lookup-all">🔍 直接查这整段（当作一个词条）</button></div>' +
-    '<div class="field"><label>来源（可选）</label><input id="capSource" placeholder="如：马太福音 5章" value="' + escapeHtml(st.source || "") + '"></div>' +
+    '<div class="small" style="margin-top:8px">已选 ' + selCount + ' 词 → ' + groups.length + ' 张卡</div>' +
     '<div id="capGroups"></div>' +
     '<div class="actions"><button data-action="cap-confirm" ' + (groups.length ? "" : "disabled") + '>制作闪卡（' + groups.length + '）</button></div>';
   renderCapGroups();
@@ -2089,14 +2170,8 @@ document.addEventListener("click", e => {
       }
     }).catch(err => toast(String(err.message||err))).finally(()=> { el.disabled = false; });
   }
-  else if(a === "cap-lookup-all"){
-    if(captureState){
-      const phrase = captureState.tokens.map(t => cleanTerm(t.raw)).filter(Boolean).join(" ");
-      closeCaptureTask();
-      if(phrase){ switchTab("search"); search(phrase); }
-    }
-  }
   else if(a === "cap-tok"){
+    if(Date.now() < tokSuppressClickUntil) return; /* that "tap" was a long-press edit */
     const i = +el.dataset.i;
     if(captureState){ captureState.tokens[i].selected = !captureState.tokens[i].selected; renderCapture(); }
   }
